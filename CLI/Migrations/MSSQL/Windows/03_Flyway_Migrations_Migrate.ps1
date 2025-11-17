@@ -1,16 +1,16 @@
 # ===========================
-# Script Name: 00_Flyway_Migrations_Migrate.ps1
+# Script Name: 03_Flyway_Migrations_Migrate.ps1
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-15
 # Description: Flyway Migrations Based - Use the MIGRATE verb to deploy pending changes to SHADOW environment to validate
 # ===========================
 
-# Variables #
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB" 
-$TARGET_ENVIRONMENT = "shadow"
-$TARGET_ENVIRONMENT_USERNAME = ""
-$TARGET_ENVIRONMENT_PASSWORD = ""
+# Variables - Customize these for your environment #
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway project root
+$TARGET_ENVIRONMENT = "shadow"  # Target database environment name
+$TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
+$TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
 
 # Calculate the differences between two entities (Databases/Folders & More) #
 flyway migrate info `

@@ -1,8 +1,16 @@
-# Variables #
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila" 
-$TARGET_ENVIRONMENT = "prod"
-$TARGET_ENVIRONMENT_USERNAME = "postgres"
-$TARGET_ENVIRONMENT_PASSWORD = "Redg@te1"
+# ===========================
+# Script Name: 03_Flyway_Migrations_Migrate.ps1
+# Version: 1.0.0
+# Author: Chris Hawkins (Redgate Software Ltd)
+# Last Updated: 2025-11-15
+# Description: Flyway Migrations Based - Use the MIGRATE verb to apply migration scripts to database
+# ===========================
+
+# Variables - Customize these for your environment #
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila"  # Path to Flyway project root
+$TARGET_ENVIRONMENT = "prod"  # Target database environment to migrate
+$TARGET_ENVIRONMENT_USERNAME = "postgres"  # Target database username
+$TARGET_ENVIRONMENT_PASSWORD = "Redg@te1"  # Target database password (use env variables in production)
 
 # Calculate the differences between two entities (Databases/Folders & More) #
 flyway migrate info `

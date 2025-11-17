@@ -1,20 +1,20 @@
 #!/bin/bash
 
 # ===========================
-# Script Name: 01_Flyway_State_Prepare.sh
+# Script Name: 02_Flyway_State_Prepare.sh
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-15
 # Description: Flyway State Based - Use the PREPARE verb to create deployment script between two environments (By default - Changes in the Schema Model not in the Test environment)
 # ===========================
 
-# Variables #
-SCRIPT_FILENAME="Flyway-Dryrun_Deployment_Script-$(date +"%d-%m-%Y").sql"
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL" # Path to working directory
-SOURCE_ENVIRONMENT="schemaModel" # Source Comparison Environment (By default this is the Schema Model)
-TARGET_ENVIRONMENT="Test" # Target Comparison Environment (By defauly this is an environment with an id of 'Test')
-TARGET_ENVIRONMENT_USERNAME=""
-TARGET_ENVIRONMENT_PASSWORD=""
+# Variables - Customize these for your environment #
+SCRIPT_FILENAME="Flyway-Dryrun_Deployment_Script-$(date +"%d-%m-%Y").sql"  # Output deployment script name
+WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL"  # Path to Flyway project root
+SOURCE_ENVIRONMENT="schemaModel"  # Source environment name (desired state)
+TARGET_ENVIRONMENT="Test"  # Target database environment name
+TARGET_ENVIRONMENT_USERNAME=""  # Target database username (leave empty for flyway.toml)
+TARGET_ENVIRONMENT_PASSWORD=""  # Target database password (use env variables in production)
 
 # Prepare Script for Deployment #
 flyway prepare \

@@ -8,9 +8,9 @@
 # Description: Flyway State Based - Use the Model verb to capture artifact differences to project Schema Model
 # ===========================
 
-# Variables #
-ARTIFACT_FILENAME="Flyway.State.Development.differences-$(date +"%d-%m-%Y").zip"
-WORKING_DIRECTORY="/mnt/c//GIT/Repos/MyProjectName" # Path to working directory
+# Variables - Customize these for your environment #
+ARTIFACT_FILENAME="Flyway.State.Development.differences-$(date +"%d-%m-%Y").zip"  # Input artifact file from diff operation
+WORKING_DIRECTORY="/mnt/c/GIT/Repos/MyProjectName"  # Path to Flyway project root
 
 flyway model \
 "-model.artifactFilename=$ARTIFACT_FILENAME" \

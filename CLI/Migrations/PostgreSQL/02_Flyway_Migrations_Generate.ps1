@@ -1,6 +1,14 @@
-# Variables #
-$ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Migrations.differences-$(get-date -f yyyyMMdd).zip"
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila" 
+# ===========================
+# Script Name: 02_Flyway_Migrations_Generate.ps1
+# Version: 1.0.0
+# Author: Chris Hawkins (Redgate Software Ltd)
+# Last Updated: 2025-11-15
+# Description: Flyway Migrations Based - Use the GENERATE verb to create migration scripts
+# ===========================
+
+# Variables - Customize these for your environment #
+$ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Input artifact file from diff operation
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila"  # Path to Flyway project root
 $SOURCE_ENVIRONMENT = "schemaModel"
 $TARGET_ENVIRONMENT = "migrations"
 $BUILD_ENVIRONMENT = "shadow"

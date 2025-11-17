@@ -1,22 +1,22 @@
 #!/bin/bash
 
 # ===========================
-# Script Name: 00_Flyway_Migrations_Generate.sh
+# Script Name: 02_Flyway_Migrations_Generate.sh
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-15
 # Description: Flyway Migrations Based - Use the DIFF & GENERATE verbs to create a Migration and Undo script for the changes found in the Schema Model
 # ===========================
 
-# Variables #
-ARTIFACT_FILENAME="Flyway.Migrations.differences-$(date +"%d-%m-%Y").zip"
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL" 
-SOURCE_ENVIRONMENT="schemaModel"
-TARGET_ENVIRONMENT="migrations"
-BUILD_ENVIRONMENT="shadow"
-BUILD_ENVIRONMENT_USERNAME=""
-BUILD_ENVIRONMENT_PASSWORD=""
-FLYWAY_VERSION_DESCRIPTION="FlywayCLI_AutomatedMigrationScript"
+# Variables - Customize these for your environment #
+ARTIFACT_FILENAME="Flyway.Migrations.differences-$(date +"%d-%m-%Y").zip"  # Output file for generated migrations
+WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL"  # Path to Flyway project root
+SOURCE_ENVIRONMENT="schemaModel"  # Source environment name (desired state)
+TARGET_ENVIRONMENT="migrations"  # Target environment name (existing migrations)
+BUILD_ENVIRONMENT="shadow"  # Build database environment name for validation
+BUILD_ENVIRONMENT_USERNAME=""  # Build database username (leave empty for flyway.toml)
+BUILD_ENVIRONMENT_PASSWORD=""  # Build database password (use env variables in production)
+FLYWAY_VERSION_DESCRIPTION="FlywayCLI_AutomatedMigrationScript"  # Description for migration script filename
 
 # Calculate the differences between two entities (Databases/Folders & More) #
 flyway diff generate \
