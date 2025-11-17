@@ -10,7 +10,7 @@
 
 # Variables - Customize these for your environment #
 ARTIFACT_FILENAME="Flyway.Migrations.differences-$(date +"%d-%m-%Y").zip"  # Output file for generated migrations
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL"  # Path to Flyway project root
+WORKING_DIRECTORY="/home/user/flyway-projects/migrations/mssql/chinook"  # Path to Flyway migrations-based project root
 SOURCE_ENVIRONMENT="schemaModel"  # Source environment name (desired state)
 TARGET_ENVIRONMENT="migrations"  # Target environment name (existing migrations)
 BUILD_ENVIRONMENT="shadow"  # Build database environment name for validation

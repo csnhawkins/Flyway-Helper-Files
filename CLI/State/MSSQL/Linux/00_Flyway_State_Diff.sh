@@ -10,7 +10,7 @@
 
 # Variables - Customize these for your environment #
 ARTIFACT_FILENAME="Flyway.State.Development.differences-$(date +"%d-%m-%Y").zip"  # Output file for comparison results
-WORKING_DIRECTORY="/c/Redgate/GIT/Repos/GitHub/Flyway-Helper-Files/CLI/State/MSSQL/Linux"  # Path to Flyway project root
+WORKING_DIRECTORY="/home/user/flyway-projects/state/mssql/chinook"  # Path to Flyway state-based project root
 SOURCE_ENVIRONMENT="development"  # Source database environment name
 SOURCE_ENVIRONMENT_USERNAME=""  # Source database username (leave empty for flyway.toml)
 SOURCE_ENVIRONMENT_PASSWORD=""  # Source database password (use env variables in production)

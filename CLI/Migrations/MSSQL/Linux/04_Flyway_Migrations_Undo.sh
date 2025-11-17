@@ -9,7 +9,7 @@
 # ===========================
 
 # Variables - Customize these for your environment #
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/Local/State_MSSQL"  # Path to Flyway project root
+WORKING_DIRECTORY="/home/user/flyway-projects/migrations/mssql/chinook"  # Path to Flyway migrations-based project root
 TARGET_ENVIRONMENT="shadow"  # Target database environment name for undo operation
 TARGET_ENVIRONMENT_USERNAME=""  # Target database username (leave empty for flyway.toml)
 TARGET_ENVIRONMENT_PASSWORD=""  # Target database password (use env variables in production)

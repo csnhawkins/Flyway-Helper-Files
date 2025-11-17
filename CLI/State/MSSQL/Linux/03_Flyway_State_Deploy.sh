@@ -10,7 +10,7 @@
 
 # Variables - Customize these for your environment #
 SCRIPT_FILENAME="D_Flyway-Dryrun_Deployment_Script-$(date +"%d-%m-%Y").sql"  # Path to deployment script to execute
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/MyProjectName"  # Path to Flyway project root
+WORKING_DIRECTORY="/home/user/flyway-projects/state/mssql/chinook"  # Path to Flyway state-based project root
 TARGET_ENVIRONMENT="Test"  # Target database environment name
 TARGET_ENVIRONMENT_USERNAME=""  # Target database username (leave empty for flyway.toml)
 TARGET_ENVIRONMENT_PASSWORD=""  # Target database password (use env variables in production)

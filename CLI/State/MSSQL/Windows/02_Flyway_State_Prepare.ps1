@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $SCRIPT_FILENAME = "Flyway-Dryrun_Deployment_Script-$(get-date -f yyyyMMdd).sql"  # Output deployment script name
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"  # Path to Flyway project root
+$WORKING_DIRECTORY = "C:\FlywayProjects\State\MSSQL\Chinook"  # Path to Flyway state-based project root
 $SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)

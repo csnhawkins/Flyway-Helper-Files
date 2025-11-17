@@ -10,7 +10,7 @@
 
 # Variables - Customize these for your environment #
 ARTIFACT_FILENAME="Flyway.State.Development.differences-$(date +"%d-%m-%Y").zip"  # Input artifact file from diff operation
-WORKING_DIRECTORY="/mnt/c/GIT/Repos/MyProjectName"  # Path to Flyway project root
+WORKING_DIRECTORY="/home/user/flyway-projects/state/mssql/chinook"  # Path to Flyway state-based project root
 
 flyway model \
 "-model.artifactFilename=$ARTIFACT_FILENAME" \
