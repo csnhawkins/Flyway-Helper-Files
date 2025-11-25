@@ -1,8 +1,8 @@
 # ===========================
-# Script Name: 03_Flyway_State_Deploy.ps1
-# Version: 1.0.0
+# Script Name: 04_Flyway_State_Deploy.ps1
+# Version: 1.0.1
 # Author: Chris Hawkins (Redgate Software Ltd)
-# Last Updated: 2025-11-15
+# Last Updated: 2025-11-25
 # Description: Flyway State Based - Use the Deploy verb to run referenced script against a target environment
 # ===========================
 
@@ -12,6 +12,7 @@ $WORKING_DIRECTORY = "C:\FlywayProjects\State\MSSQL\Chinook"  # Path to Flyway s
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
+$SAVE_SNAPSHOT = "true" # Optional - Save schema snapshot in target environment
 
 # Deploy Script to target #
 flyway deploy `
@@ -19,4 +20,5 @@ flyway deploy `
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" `
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" `
 "-deploy.scriptFilename=$SCRIPT_FILENAME" `
+"-deploy.saveSnapshot=$SAVE_SNAPSHOT" `
 -workingDirectory="$WORKING_DIRECTORY"
