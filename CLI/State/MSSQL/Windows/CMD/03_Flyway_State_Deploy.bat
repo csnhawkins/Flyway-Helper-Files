@@ -16,10 +16,10 @@ set "TARGET_ENVIRONMENT_PASSWORD="
 
 REM Deploy Script to target
 flyway deploy ^
-"-environment=%TARGET_ENVIRONMENT%" ^
-"-environments.%TARGET_ENVIRONMENT%.user=%TARGET_ENVIRONMENT_USERNAME%" ^
-"-environments.%TARGET_ENVIRONMENT%.password=%TARGET_ENVIRONMENT_PASSWORD%" ^
-"-deploy.scriptFilename=%SCRIPT_FILENAME%" ^
+-environment="%TARGET_ENVIRONMENT%" ^
+-environments.%TARGET_ENVIRONMENT%.user="%TARGET_ENVIRONMENT_USERNAME%" ^
+-environments.%TARGET_ENVIRONMENT%.password="%TARGET_ENVIRONMENT_PASSWORD%" ^
+-deploy.scriptFilename="%SCRIPT_FILENAME%" ^
 -workingDirectory="%WORKING_DIRECTORY%"
 
 pause

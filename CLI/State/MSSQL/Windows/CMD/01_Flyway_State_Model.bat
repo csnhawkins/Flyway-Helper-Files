@@ -12,7 +12,7 @@ set "ARTIFACT_FILENAME=%temp%\Artifacts\Flyway.State.Development.differences.zip
 set "WORKING_DIRECTORY=C:\FlywayProjects\State\MSSQL\Chinook"
 
 flyway model ^
-"-model.artifactFilename=%ARTIFACT_FILENAME%" ^
+-model.artifactFilename="%ARTIFACT_FILENAME%" ^
 -workingDirectory="%WORKING_DIRECTORY%"
 
 pause
