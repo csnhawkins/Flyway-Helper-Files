@@ -18,5 +18,5 @@ flyway migrate info `
 -environment="$TARGET_ENVIRONMENT" `
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" `
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" `
-"-migrations.saveSnapshot=$SAVE_SNAPSHOT" `
+"-migrate.saveSnapshot=$SAVE_SNAPSHOT" `
 -workingDirectory="$WORKING_DIRECTORY"
