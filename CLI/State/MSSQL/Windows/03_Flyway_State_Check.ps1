@@ -1,5 +1,5 @@
 # ===========================
-# Script Name: 02_Flyway_State_Check.ps1
+# Script Name: 03_Flyway_State_Check.ps1
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-25
