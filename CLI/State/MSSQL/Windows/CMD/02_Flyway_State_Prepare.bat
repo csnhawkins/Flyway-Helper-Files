@@ -10,7 +10,7 @@ REM ===========================
 REM Variables - Customize these for your environment
 set "SCRIPT_FILENAME=Flyway_Deployment_Script.sql"
 set "UNDO_FILENAME=Flyway_Undo_Script.sql"
-set "WORKING_DIRECTORY=C:\FlywayProjects\State\MSSQL\Chinook"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "SOURCE_ENVIRONMENT=schemaModel"
 set "TARGET_ENVIRONMENT=Test"
 set "TARGET_ENVIRONMENT_USERNAME="

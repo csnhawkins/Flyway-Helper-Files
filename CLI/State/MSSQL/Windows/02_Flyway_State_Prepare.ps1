@@ -9,7 +9,7 @@
 # Variables - Customize these for your environment #
 $SCRIPT_FILENAME = "Flyway_Deployment_Script.sql"  # Output deployment script name
 $UNDO_FILENAME = "Flyway_Undo_Script.sql"  # Output deployment script name
-$WORKING_DIRECTORY = "C:\FlywayProjects\State\MSSQL\Chinook"  # Path to Flyway state-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway state-based project root
 $SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)

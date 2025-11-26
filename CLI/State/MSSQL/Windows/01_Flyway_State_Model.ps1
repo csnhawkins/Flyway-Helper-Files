@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.State.Development.differences-$(get-date -f yyyyMMdd).zip"  # Input artifact file from diff operation
-$WORKING_DIRECTORY = "C:\FlywayProjects\State\MSSQL\Chinook"  # Path to Flyway state-based project root 
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway state-based project root 
 
 flyway model `
 "-model.artifactFilename=$ARTIFACT_FILENAME" `

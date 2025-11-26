@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "SCRIPT_FILENAME=%temp%\Artifacts\D_Flyway-Dryrun_Deployment_Script.sql"
-set "WORKING_DIRECTORY=C:\FlywayProjects\State\MSSQL\Chinook"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "TARGET_ENVIRONMENT=Test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="

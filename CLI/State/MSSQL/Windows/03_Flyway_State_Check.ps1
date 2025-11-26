@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $REPORT_FILENAME = "Flyway-Check-All_Report.html"  # Output deployment script name
-$WORKING_DIRECTORY = "C:\FlywayProjects\State\MSSQL\Chinook"  # Path to Flyway state-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway state-based project root
 $SCRIPT_FILENAME = "Flyway_Deployment_Script.sql"  # Output deployment script name
 $SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
