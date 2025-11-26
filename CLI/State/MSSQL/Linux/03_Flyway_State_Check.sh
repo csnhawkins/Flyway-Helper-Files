@@ -1,31 +1,30 @@
 #!/bin/bash
 
 # ===========================
-# Script Name: 02_Flyway_State_Prepare.sh
+# Script Name: 03_Flyway_State_Check.sh
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
-# Last Updated: 2025-11-15
-# Description: Flyway State Based - Use the PREPARE verb to create deployment script between two environments (By default - Changes in the Schema Model not in the Test environment)
+# Last Updated: 2025-11-26
+# Description: Flyway State Based - Use the CHECK verb to create a report detailing all pending changes/detected drift and code analysis
 # ===========================
 
 # Variables - Customize these for your environment #
-SCRIPT_FILENAME="Flyway_Deployment_Script.sql"  # Output deployment script name
-UNDO_FILENAME="Flyway_Undo_Script.sql"  # Output deployment script name
+REPORT_FILENAME="Flyway-Check-All_Report.html"  # Output deployment script name
 WORKING_DIRECTORY="/home/user/flyway-projects/state/mssql/chinook"  # Path to Flyway state-based project root
+SCRIPT_FILENAME="Flyway_Deployment_Script.sql"  # Output deployment script name
 SOURCE_ENVIRONMENT="schemaModel"  # Source environment name (desired state)
 TARGET_ENVIRONMENT="Test"  # Target database environment name
 TARGET_ENVIRONMENT_USERNAME=""  # Target database username (leave empty for flyway.toml)
 TARGET_ENVIRONMENT_PASSWORD=""  # Target database password (use env variables in production)
 
 # Prepare Script for Deployment #
-flyway prepare \
-"-prepare.source=$SOURCE_ENVIRONMENT" \
-"-prepare.target=$TARGET_ENVIRONMENT" \
-"-prepare.types=deploy,undo" \
+flyway check -changes -code -drift \
+"-check.changesSource=$SOURCE_ENVIRONMENT" \
+"-environment=$TARGET_ENVIRONMENT" \
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" \
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" \
-"-prepare.scriptFilename=D_$SCRIPT_FILENAME" \
-"-prepare.undoFilename=U_$UNDO_FILENAME" \
-"-prepare.force=true" \
+"-check.scope=script" \
+"-check.scriptFilename=/tmp/Artifacts/D_$SCRIPT_FILENAME" \
 -configFiles="$WORKING_DIRECTORY/flyway.toml" \
--schemaModelLocation="$WORKING_DIRECTORY/schema-model"
+-workingDirectory="$WORKING_DIRECTORY" \
+"-reportFilename=$WORKING_DIRECTORY/Artifact/$REPORT_FILENAME"
