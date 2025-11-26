@@ -43,30 +43,55 @@ Flyway supports two primary deployment approaches, and this repository provides 
 3. **02_Generate** - Create migration scripts from differences
 4. **03_Migrate** - Deploy migrations to target environment
 5. **04_Undo** - Rollback migrations if needed
+6. **05_Snapshot** - Create schema snapshot for point-in-time recovery
 
 ### State-based Workflow
 1. **00_Diff** - Compare current state with desired model
 2. **01_Model** - Update or validate schema model
-3. **02_Prepare** - Generate deployment script with dry-run
-4. **03_Deploy** - Execute deployment script against target
+3. **02_Prepare** - Generate deployment and undo scripts
+4. **03_Check** - Analyze changes, detect drift, and generate compliance reports
+5. **04_Deploy** - Execute deployment script against target with optional snapshot
+6. **05_Snapshot** - Create schema snapshot for point-in-time recovery
+
+### Enhanced State-based Capabilities
+
+The State-based workflow now includes advanced features for production-ready deployments:
+
+- **Check Command (03):** Performs comprehensive analysis including:
+  - Change detection between schema model and target database
+  - Code quality analysis and rule violations
+  - Drift detection to identify unauthorized changes
+  - Generates detailed HTML reports for compliance and auditing
+
+- **Deploy with Snapshots (04):** Enhanced deployment features:
+  - Executes deployment scripts with full transaction support
+  - Optional automatic schema snapshots before deployment
+  - Rollback capabilities using generated undo scripts
+
+- **Snapshot Management (05):** Point-in-time recovery support:
+  - Creates timestamped schema snapshots
+  - Stores snapshots in Flyway's snapshot history table
+  - Enables quick rollback to known good states
 
 ## 🔧 Getting Started
 
 ### Prerequisites
 - [Flyway CLI](https://flywaydb.org/download) installed and accessible in your PATH
 - Access to your target database(s)
-- PowerShell (Windows) or Bash (Linux) environment
+- PowerShell (Windows), CMD (Windows), or Bash (Linux) environment
 
 ### Using the Scripts
 
 1. **Choose your deployment methodology** (Migrations or State-based)
 2. **Select your database platform** (MSSQL or PostgreSQL)
-3. **Pick your operating system** (Windows PowerShell or Linux Bash)
+3. **Pick your operating system** (Windows PowerShell, Windows CMD, or Linux Bash)
 4. **Customize the variables** in each script:
    - Database connection strings
    - Working directories
    - Environment names
    - Credentials (consider using environment variables for security)
+
+**Note:** For Windows environments where PowerShell is restricted or blocked, CMD batch file equivalents (.bat) are available in the `/CMD/` subfolders within each Windows script directory.
 
 ### Important Variables to Configure
 
