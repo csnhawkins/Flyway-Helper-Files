@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "ARTIFACT_FILENAME=%temp%\Artifacts\Flyway.State.Development.differences.zip"
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"
 
 flyway model ^
 -model.artifactFilename="%ARTIFACT_FILENAME%" ^

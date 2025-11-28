@@ -7,7 +7,7 @@
 # ===========================
 
 # Variables - Customize these for your environment #
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway state-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"  # Path to Flyway state-based project root
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)

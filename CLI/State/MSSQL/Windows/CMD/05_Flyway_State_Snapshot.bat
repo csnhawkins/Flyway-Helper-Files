@@ -8,7 +8,7 @@ REM Description: Flyway State Based - Use the Snapshot verb to create a schema s
 REM ===========================
 
 REM Variables - Customize these for your environment
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"
 set "TARGET_ENVIRONMENT=Test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="

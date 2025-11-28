@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "REPORT_FILENAME=Flyway-Check-All_Report.html"
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"
 set "SCRIPT_FILENAME=Flyway_Deployment_Script.sql"
 set "SOURCE_ENVIRONMENT=schemaModel"
 set "TARGET_ENVIRONMENT=Test"
