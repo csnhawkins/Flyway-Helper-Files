@@ -16,6 +16,12 @@ set "TARGET_ENVIRONMENT=Test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="
 
+REM NOTE: First-time execution warning
+REM If this is the first time running check against the target environment, you may receive warnings
+REM about missing snapshots in the snapshotHistory table. This will be resolved after:
+REM - Running the 04_Deploy script (which can save snapshots automatically), OR
+REM - Running the 05_Snapshot script to create an initial snapshot
+
 REM Prepare Script for Deployment
 flyway check -changes -code -drift ^
 -check.changesSource="%SOURCE_ENVIRONMENT%" ^

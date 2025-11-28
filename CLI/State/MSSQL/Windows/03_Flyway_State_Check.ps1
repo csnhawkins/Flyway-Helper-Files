@@ -15,6 +15,12 @@ $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
 
+# NOTE: First-time execution warning #
+# If this is the first time running check against the target environment, you may receive warnings
+# about missing snapshots in the snapshotHistory table. This will be resolved after:
+# - Running the 04_Deploy script (which can save snapshots automatically), OR
+# - Running the 05_Snapshot script to create an initial snapshot
+
 # Prepare Script for Deployment #
 flyway check -changes -code -drift `
 "-check.changesSource=$SOURCE_ENVIRONMENT" `
