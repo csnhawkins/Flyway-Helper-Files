@@ -76,7 +76,7 @@ The State-based workflow now includes advanced features for production-ready dep
 ## 🔧 Getting Started
 
 ### Prerequisites
-- [Flyway CLI](https://flywaydb.org/download) installed and accessible in your PATH
+- [Flyway CLI](https://documentation.red-gate.com/flyway/reference/usage/command-line) installed and accessible in your PATH
 - Access to your target database(s)
 - PowerShell (Windows), CMD (Windows), or Bash (Linux) environment
 
