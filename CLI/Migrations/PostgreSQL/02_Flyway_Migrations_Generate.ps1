@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Input artifact file from diff operation
-$WORKING_DIRECTORY = "C:\FlywayProjects\Migrations\PostgreSQL\Chinook"  # Path to Flyway migrations-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila"  # Path to Flyway migrations-based project root
 $SOURCE_ENVIRONMENT = "schemaModel"
 $TARGET_ENVIRONMENT = "migrations"
 $BUILD_ENVIRONMENT = "shadow"

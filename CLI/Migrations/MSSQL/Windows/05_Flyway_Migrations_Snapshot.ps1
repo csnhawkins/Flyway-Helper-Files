@@ -7,7 +7,7 @@
 # ===========================
 
 # Variables - Customize these for your environment #
-$WORKING_DIRECTORY = "C:\FlywayProjects\Migrations\MSSQL\Chinook"  # Path to Flyway migrations-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway migrations-based project root
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)

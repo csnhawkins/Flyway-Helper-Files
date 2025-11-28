@@ -8,7 +8,7 @@ REM Description: Flyway Migrations Based - Use the UNDO verb to rollback last de
 REM ===========================
 
 REM Variables - Customize these for your environment
-set "WORKING_DIRECTORY=C:\FlywayProjects\Migrations\MSSQL\Chinook"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
 set "TARGET_ENVIRONMENT=shadow"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="
