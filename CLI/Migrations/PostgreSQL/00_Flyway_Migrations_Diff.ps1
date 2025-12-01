@@ -10,8 +10,8 @@
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Output file for comparison results
 $WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila"  # Path to Flyway migrations-based project root
 $SOURCE_ENVIRONMENT = "development"  # Source database environment name
-$SOURCE_ENVIRONMENT_USERNAME = ""  # Source database username (leave empty for flyway.toml)
-$SOURCE_ENVIRONMENT_PASSWORD = ""  # Source database password (use env variables in production)
+$SOURCE_ENVIRONMENT_USERNAME = "postgres"  # Source database username
+$SOURCE_ENVIRONMENT_PASSWORD = Read-Host -Prompt "Enter password for $TARGET_ENVIRONMENT_USERNAME"
 $TARGET_ENVIRONMENT = "schemaModel"  # Target environment name (schemaModel for migrations)
 
 # Calculate the differences between two entities (Databases/Folders & More) #

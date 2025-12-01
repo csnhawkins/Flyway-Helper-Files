@@ -10,7 +10,7 @@
 $WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Pagila"  # Path to Flyway migrations-based project root
 $TARGET_ENVIRONMENT = "prod"  # Target database environment to migrate
 $TARGET_ENVIRONMENT_USERNAME = "postgres"  # Target database username
-$TARGET_ENVIRONMENT_PASSWORD = "Redg@te1"  # Target database password (use env variables in production)
+$TARGET_ENVIRONMENT_PASSWORD = Read-Host -Prompt "Enter password for $TARGET_ENVIRONMENT_USERNAME"  # Prompt for password
 
 # Calculate the differences between two entities (Databases/Folders & More) #
 flyway migrate info `
