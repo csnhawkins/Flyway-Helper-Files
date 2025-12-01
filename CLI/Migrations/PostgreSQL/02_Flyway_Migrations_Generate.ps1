@@ -13,7 +13,7 @@ $SOURCE_ENVIRONMENT = "schemaModel"
 $TARGET_ENVIRONMENT = "migrations"
 $BUILD_ENVIRONMENT = "shadow"
 $BUILD_ENVIRONMENT_USERNAME = "postgres"
-$BUILD_ENVIRONMENT_PASSWORD = Read-Host -Prompt "Enter password for $BUILD_ENVIRONMENT_USERNAME"  # Prompt for password
+$BUILD_ENVIRONMENT_PASSWORD = Read-Host -Prompt "Enter password for database user" -AsSecureString | ConvertFrom-SecureString -AsPlainText
 $FLYWAY_VERSION_DESCRIPTION = "FlywayCLI_AutomatedMigrationScript"
 
 # Calculate the differences between two entities (Databases/Folders & More) #
