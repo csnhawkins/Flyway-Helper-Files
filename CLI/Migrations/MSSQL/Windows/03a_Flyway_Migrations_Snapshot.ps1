@@ -18,4 +18,5 @@ flyway snapshot `
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" `
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" `
 "-snapshot.filename=snapshotHistory:Snapshot-$(get-date -f yyyyMMdd)" `
+"-snapshot.historyLimit=5" `
 -workingDirectory="$WORKING_DIRECTORY"
