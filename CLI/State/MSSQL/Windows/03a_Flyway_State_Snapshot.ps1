@@ -1,13 +1,13 @@
 # ===========================
-# Script Name: 05_Flyway_Migrations_Snapshot.ps1
+# Script Name: 03a_Flyway_State_Snapshot.ps1
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-25
-# Description: Use the Snapshot verb to create a schema snapshot of target database
+# Description: Flyway State Based - Use the Snapshot verb to create a schema snapshot of target database
 # ===========================
 
 # Variables - Customize these for your environment #
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway migrations-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"  # Path to Flyway state-based project root
 $TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)

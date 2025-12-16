@@ -1,10 +1,11 @@
 # ===========================
-# Script Name: 03_Flyway_State_Check.ps1
+# Script Name: 03_Flyway_Migrations_Check.ps1
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
-# Last Updated: 2025-11-25
-# Description: Flyway State Based - Use the CHECK verb to create a report detailing all pending changes/detected drift and code analysis
+# Last Updated: 2025-11-15
+# Description: Flyway Migrations Based - Use the CHECK verb to create a report detailing all pending changes/detected drift and code analysis
 # ===========================
+
 
 # Variables - Customize these for your environment #
 $REPORT_FILENAME = "Flyway-Check-All_Report.html"  # Output deployment script name
@@ -16,12 +17,11 @@ $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for f
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
 
 # NOTE: First-time execution warning #
-# If this is the first time running check against the target environment, you may receive warnings
-# about missing snapshots in the snapshotHistory table. This will be resolved after:
-# - Running the 04_Deploy script (which can save snapshots automatically), OR
-# - Running the 05_Snapshot script to create an initial snapshot
+# If this is the first time running check against the target environment, you may receive warnings about missing snapshots in the snapshotHistory table. Either Run:
+# - 03a_Flyway_Migrations_Snapshot.ps1 to create an initial snapshot, OR
+# - 04_Flyway_Migrations_Migrate.ps1 script (which can save snapshots automatically after deployment)
 
-# Prepare Script for Deployment #
+# Create Check Report #
 flyway check -changes -code -drift `
 "-check.changesSource=$SOURCE_ENVIRONMENT" `
 "-environment=$TARGET_ENVIRONMENT" `
