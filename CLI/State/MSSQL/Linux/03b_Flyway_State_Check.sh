@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================
-# Script Name: 03_Flyway_State_Check.sh
+# Script Name: 03b_Flyway_State_Check.sh
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-26

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ===========================
-# Script Name: 05_Flyway_State_Snapshot.sh
+# Script Name: 03a_Flyway_State_Snapshot.sh
 # Version: 1.0.0
 # Author: Chris Hawkins (Redgate Software Ltd)
 # Last Updated: 2025-11-26
@@ -20,4 +20,5 @@ flyway snapshot \
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" \
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" \
 "-snapshot.filename=snapshotHistory:Snapshot-$(date +%Y%m%d)" \
+"-snapshot.historyLimit=5" \
 -workingDirectory="$WORKING_DIRECTORY"
