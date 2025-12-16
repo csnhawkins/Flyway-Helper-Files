@@ -9,10 +9,11 @@
 
 # Variables - Customize these for your environment #
 $REPORT_FILENAME = "Flyway-Check-All_Report.html"  # Output deployment script name
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\State_Based_Projects\MSSQL_State"  # Path to Flyway state-based project root
-$SCRIPT_FILENAME = "Flyway_Deployment_Script.sql"  # Output deployment script name
-$SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
-$TARGET_ENVIRONMENT = "Test"  # Target database environment name
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway state-based project root
+$REPORT_ENVIRONMENT = "shadow"  # Sandbox environment name
+$REPORT_ENVIRONMENT_USERNAME = ""  # Sandbox database username (leave empty for flyway.toml)
+$REPORT_ENVIRONMENT_PASSWORD = ""  # Sandbox database password (use env variables in 
+$TARGET_ENVIRONMENT = "test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
 
@@ -22,13 +23,13 @@ $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables
 # - 04_Flyway_Migrations_Migrate.ps1 script (which can save snapshots automatically after deployment)
 
 # Create Check Report #
-flyway check -changes -code -drift `
-"-check.changesSource=$SOURCE_ENVIRONMENT" `
+flyway check -dryrun -changes -code -drift -code `
+"-check.buildEnvironment=$REPORT_ENVIRONMENT" `
+"-environments.$REPORT_ENVIRONMENT.user=$REPORT_ENVIRONMENT_USERNAME" `
+"-environments.$REPORT_ENVIRONMENT.password=$REPORT_ENVIRONMENT_PASSWORD" `
 "-environment=$TARGET_ENVIRONMENT" `
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" `
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" `
-"-check.scope=script" `
-"-check.scriptFilename=%temp%\Artifacts\D_$SCRIPT_FILENAME" `
 -configFiles="$WORKING_DIRECTORY\flyway.toml" `
 -workingDirectory="$WORKING_DIRECTORY" `
 "-reportFilename=$WORKING_DIRECTORY\Artifact\$REPORT_FILENAME"

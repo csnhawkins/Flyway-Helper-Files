@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
-set "TARGET_ENVIRONMENT=Test"
+set "TARGET_ENVIRONMENT=test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="
 
