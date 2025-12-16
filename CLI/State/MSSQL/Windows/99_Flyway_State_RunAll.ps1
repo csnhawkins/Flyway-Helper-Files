@@ -6,7 +6,7 @@ Write-Host "Starting Flyway State-Based Workflow - Run All..." -ForegroundColor 
 
 # Define steps with descriptions
 $steps = @(
-    @{ Name = '00_Flyway_State_Diff.ps1';     Description = 'Compare current state with desired model and create artifact' },
+    @{ Name = '00_Flyway_State_Diff.ps1';     Description = 'Compare current Development state with project Schema Model state and create artifact' },
     @{ Name = '01_Flyway_State_Model.ps1';    Description = 'Update or validate schema model from artifact' },
     @{ Name = '02_Flyway_State_Prepare.ps1';  Description = 'Generate deployment and undo scripts' },
     @{ Name = '03a_Flyway_State_Snapshot.ps1'; Description = 'Create schema snapshot for point-in-time recovery' },
