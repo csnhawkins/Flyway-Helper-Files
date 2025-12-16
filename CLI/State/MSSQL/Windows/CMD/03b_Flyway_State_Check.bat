@@ -1,9 +1,9 @@
 @echo off
 REM ===========================
-REM Script Name: 03_Flyway_State_Check.bat
-REM Version: 1.0.0
+REM Script Name: 03b_Flyway_State_Check.bat
+REM Version: 1.0.1
 REM Author: Chris Hawkins (Redgate Software Ltd)
-REM Last Updated: 2025-11-25
+REM Last Updated: 2025-12-16
 REM Description: Flyway State Based - Use the CHECK verb to create a report detailing all pending changes/detected drift and code analysis
 REM ===========================
 
