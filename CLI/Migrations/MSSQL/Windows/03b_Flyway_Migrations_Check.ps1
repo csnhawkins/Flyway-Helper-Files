@@ -1,8 +1,8 @@
 # ===========================
 # Script Name: 03_Flyway_Migrations_Check.ps1
-# Version: 1.0.0
+# Version: 1.0.1
 # Author: Chris Hawkins (Redgate Software Ltd)
-# Last Updated: 2025-11-15
+# Last Updated: 2025-12-16
 # Description: Flyway Migrations Based - Use the CHECK verb to create a report detailing all pending changes/detected drift and code analysis
 # ===========================
 
