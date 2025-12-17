@@ -28,6 +28,7 @@ flyway check -changes -code -drift ^
 -environment="%TARGET_ENVIRONMENT%" ^
 -environments.%TARGET_ENVIRONMENT%.user="%TARGET_ENVIRONMENT_USERNAME%" ^
 -environments.%TARGET_ENVIRONMENT%.password="%TARGET_ENVIRONMENT_PASSWORD%" ^
+-check.deployedSnapshot="snapshotHistory:current" ^
 -check.scope="script" ^
 -check.scriptFilename="%temp%\Artifacts\D_%SCRIPT_FILENAME%" ^
 -configFiles="%WORKING_DIRECTORY%\flyway.toml" ^

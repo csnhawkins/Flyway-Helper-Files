@@ -1,23 +1,24 @@
 @echo off
 REM ===========================
-REM Script Name: 03_Flyway_Migrations_Migrate.bat
-REM Version: 1.0.0
+REM Script Name: 03a_Flyway_Migrations_Snapshot.bat
+REM Version: 1.0.1
 REM Author: Chris Hawkins (Redgate Software Ltd)
-REM Last Updated: 2025-11-25
-REM Description: Flyway Migrations Based - Use the MIGRATE verb to deploy pending changes to SHADOW environment to validate
+REM Last Updated: 2025-12-17
+REM Description: Use the Snapshot verb to create a schema snapshot of target database
 REM ===========================
 
 REM Variables - Customize these for your environment
 set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
-set "TARGET_ENVIRONMENT=shadow"
+set "TARGET_ENVIRONMENT=test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="
 
-REM Calculate the differences between two entities (Databases/Folders & More)
-flyway migrate info ^
+REM Create Snapshot and save into snapshotHistory table
+flyway snapshot ^
 -environment="%TARGET_ENVIRONMENT%" ^
 -environments.%TARGET_ENVIRONMENT%.user="%TARGET_ENVIRONMENT_USERNAME%" ^
 -environments.%TARGET_ENVIRONMENT%.password="%TARGET_ENVIRONMENT_PASSWORD%" ^
+-snapshot.filename="snapshotHistory:Snapshot-Static" ^
 -workingDirectory="%WORKING_DIRECTORY%"
 
 pause
