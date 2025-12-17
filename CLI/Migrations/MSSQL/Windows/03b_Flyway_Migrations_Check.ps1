@@ -23,10 +23,11 @@ $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables
 # - 04_Flyway_Migrations_Migrate.ps1 script (which can save snapshots automatically after deployment)
 
 # Create Check Report #
-flyway check -dryrun -changes -code -drift -code `
+flyway check -dryrun -changes -code -drift `
 "-check.buildEnvironment=$REPORT_ENVIRONMENT" `
 "-environments.$REPORT_ENVIRONMENT.user=$REPORT_ENVIRONMENT_USERNAME" `
 "-environments.$REPORT_ENVIRONMENT.password=$REPORT_ENVIRONMENT_PASSWORD" `
+"-check.deployedSnapshot=snapshotHistory:current" `
 "-environment=$TARGET_ENVIRONMENT" `
 "-environments.$TARGET_ENVIRONMENT.user=$TARGET_ENVIRONMENT_USERNAME" `
 "-environments.$TARGET_ENVIRONMENT.password=$TARGET_ENVIRONMENT_PASSWORD" `

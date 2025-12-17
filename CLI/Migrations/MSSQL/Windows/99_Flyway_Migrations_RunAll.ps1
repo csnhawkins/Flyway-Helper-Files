@@ -105,6 +105,64 @@ foreach ($step in $steps) {
     }
 
     Write-Host "Step $($step.Name) completed." -ForegroundColor Green
+    
+    # Special handling after Check step - Pipeline Approval Gate
+    if ($step.Name -eq '03b_Flyway_Migrations_Check.ps1') {
+        Write-Host ""
+        Write-Host "========================================" -ForegroundColor Yellow
+        Write-Host "DEPLOYMENT APPROVAL GATE" -ForegroundColor Yellow
+        Write-Host "========================================" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "The Check command has generated a detailed report of the changes to be deployed." -ForegroundColor Cyan
+        Write-Host "This report includes:" -ForegroundColor Cyan
+        Write-Host "  - Change analysis (what will be modified)" -ForegroundColor DarkGray
+        Write-Host "  - Drift detection (unauthorized changes)" -ForegroundColor DarkGray
+        Write-Host "  - Code quality analysis" -ForegroundColor DarkGray
+        Write-Host ""
+        Write-Host "Report location: .\Artifact\Flyway-Check-All_Report.html (in your Flyway project folder, unless customized)" -ForegroundColor DarkGray
+        Write-Host ""
+        
+        # Try to locate and open the report
+        $reportPattern = Join-Path -Path $basePath -ChildPath "Artifact\Flyway-Check-All_Report.html"
+        if (Test-Path $reportPattern) {
+            Write-Host "Opening Check Report..." -ForegroundColor Green
+            Start-Process $reportPattern
+            Start-Sleep -Seconds 2
+        }
+        
+        Write-Host ""
+        Write-Host "Please review the Check Report before proceeding." -ForegroundColor Yellow
+        Write-Host ""
+        
+        # Approval prompt
+        do {
+            $approval = Read-Host "Do you APPROVE this deployment? (APPROVE/REJECT, default=APPROVE)"
+            $approval = $approval.Trim().ToUpper()
+            
+            # Default to APPROVE if Enter pressed
+            if ([string]::IsNullOrWhiteSpace($approval)) {
+                $approval = "APPROVE"
+            }
+            
+            if ($approval -eq "APPROVE" -or $approval -eq "A") {
+                Write-Host ""
+                Write-Host "✓ Deployment APPROVED - Proceeding to Migrate step..." -ForegroundColor Green
+                Write-Host ""
+                break
+            }
+            elseif ($approval -eq "REJECT" -or $approval -eq "R") {
+                Write-Host ""
+                Write-Host "✗ Deployment REJECTED - Pipeline stopped by user" -ForegroundColor Red
+                Write-Host ""
+                Write-Host "No migrations have been applied to the target environment." -ForegroundColor Yellow
+                Write-Host "Review the Check Report and make necessary adjustments before running again." -ForegroundColor Yellow
+                exit 0
+            }
+            else {
+                Write-Host "Invalid input. Please enter APPROVE or REJECT." -ForegroundColor Red
+            }
+        } while ($true)
+    }
 }
 
 Write-Host "`nFlyway Migrations-Based Deployment Complete!" -ForegroundColor Green
