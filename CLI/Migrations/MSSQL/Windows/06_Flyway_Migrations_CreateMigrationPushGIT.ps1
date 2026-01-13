@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Output file for comparison results
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway project root
 $SOURCE_ENVIRONMENT = "development"  # Source database environment name
 $SOURCE_ENVIRONMENT_USERNAME = ""  # Source database username (leave empty for flyway.toml)
 $SOURCE_ENVIRONMENT_PASSWORD = ""  # Source database password (use env variables in production)
@@ -30,7 +30,7 @@ flyway diff `
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Input artifact file from diff operation
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway project root 
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway project root 
 
 flyway model `
 "-model.artifactFilename=$ARTIFACT_FILENAME" `
@@ -42,7 +42,7 @@ flyway model `
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Migrations.differences-$(get-date -f yyyyMMdd).zip"  # Output file for generated migrations
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway project root
 $SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
 $TARGET_ENVIRONMENT = "migrations"  # Target environment name (existing migrations)
 $BUILD_ENVIRONMENT = "shadow"  # Build database environment name for validation
@@ -71,7 +71,7 @@ flyway diff generate `
 # ===========================
 
 # Variables - Customize these for your environment #
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway project root
 $TARGET_ENVIRONMENT = "shadow"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)

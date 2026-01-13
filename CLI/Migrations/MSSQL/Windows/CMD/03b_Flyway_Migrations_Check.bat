@@ -10,11 +10,11 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "REPORT_FILENAME=Flyway-Check-All_Report.html"
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "REPORT_ENVIRONMENT=shadow"
 set "REPORT_ENVIRONMENT_USERNAME="
 set "REPORT_ENVIRONMENT_PASSWORD="
-set "TARGET_ENVIRONMENT=test"
+set "TARGET_ENVIRONMENT=Test"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="
 

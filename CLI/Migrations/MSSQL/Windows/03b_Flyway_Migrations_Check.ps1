@@ -9,11 +9,11 @@
 
 # Variables - Customize these for your environment #
 $REPORT_FILENAME = "Flyway-Check-All_Report.html"  # Output deployment script name
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway state-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway state-based project root
 $REPORT_ENVIRONMENT = "shadow"  # Sandbox environment name
 $REPORT_ENVIRONMENT_USERNAME = ""  # Sandbox database username (leave empty for flyway.toml)
 $REPORT_ENVIRONMENT_PASSWORD = ""  # Sandbox database password (use env variables in 
-$TARGET_ENVIRONMENT = "test"  # Target database environment name
+$TARGET_ENVIRONMENT = "Test"  # Target database environment name
 $TARGET_ENVIRONMENT_USERNAME = ""  # Target database username (leave empty for flyway.toml)
 $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables in production)
 
@@ -23,7 +23,7 @@ $TARGET_ENVIRONMENT_PASSWORD = ""  # Target database password (use env variables
 # - 04_Flyway_Migrations_Migrate.ps1 script (which can save snapshots automatically after deployment)
 
 # Create Check Report #
-flyway check -dryrun -changes -code -drift `
+flyway check -dryrun -drift -changes -code `
 "-check.buildEnvironment=$REPORT_ENVIRONMENT" `
 "-environments.$REPORT_ENVIRONMENT.user=$REPORT_ENVIRONMENT_USERNAME" `
 "-environments.$REPORT_ENVIRONMENT.password=$REPORT_ENVIRONMENT_PASSWORD" `

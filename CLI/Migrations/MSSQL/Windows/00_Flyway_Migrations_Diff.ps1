@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Development.differences-$(get-date -f yyyyMMdd).zip"  # Output file for comparison results
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway migrations-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway migrations-based project root
 $SOURCE_ENVIRONMENT = "development"  # Source database environment name
 $SOURCE_ENVIRONMENT_USERNAME = ""  # Source database username (leave empty for flyway.toml)
 $SOURCE_ENVIRONMENT_PASSWORD = ""  # Source database password (use env variables in production)

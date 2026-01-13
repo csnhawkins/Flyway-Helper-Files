@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "ARTIFACT_FILENAME=%temp%\Artifacts\Flyway.Development.differences.zip"
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "SOURCE_ENVIRONMENT=development"
 set "SOURCE_ENVIRONMENT_USERNAME="
 set "SOURCE_ENVIRONMENT_PASSWORD="

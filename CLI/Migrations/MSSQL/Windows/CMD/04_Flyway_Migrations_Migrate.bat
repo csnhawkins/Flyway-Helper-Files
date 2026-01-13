@@ -8,7 +8,7 @@ REM Description: Flyway Migrations Based - Use the MIGRATE verb to deploy pendin
 REM ===========================
 
 REM Variables - Customize these for your environment
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "TARGET_ENVIRONMENT=shadow"
 set "TARGET_ENVIRONMENT_USERNAME="
 set "TARGET_ENVIRONMENT_PASSWORD="

@@ -9,7 +9,7 @@ REM ===========================
 
 REM Variables - Customize these for your environment
 set "ARTIFACT_FILENAME=%temp%\Artifacts\Flyway.Migrations.differences.zip"
-set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\NewWorldDB"
+set "WORKING_DIRECTORY=C:\WorkingFolders\FWD\Chinook\SqlServer"
 set "SOURCE_ENVIRONMENT=schemaModel"
 set "TARGET_ENVIRONMENT=migrations"
 set "BUILD_ENVIRONMENT=shadow"

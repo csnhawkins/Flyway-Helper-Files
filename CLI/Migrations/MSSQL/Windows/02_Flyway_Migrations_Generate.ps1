@@ -8,7 +8,7 @@
 
 # Variables - Customize these for your environment #
 $ARTIFACT_FILENAME = "%temp%/Artifacts/Flyway.Migrations.differences-$(get-date -f yyyyMMdd).zip"  # Output file for generated migrations
-$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\NewWorldDB"  # Path to Flyway migrations-based project root
+$WORKING_DIRECTORY = "C:\WorkingFolders\FWD\Chinook\SqlServer"  # Path to Flyway migrations-based project root
 $SOURCE_ENVIRONMENT = "schemaModel"  # Source environment name (desired state)
 $TARGET_ENVIRONMENT = "migrations"  # Target environment name (existing migrations)
 $BUILD_ENVIRONMENT = "shadow"  # Build database environment name for validation
