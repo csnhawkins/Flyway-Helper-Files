@@ -75,6 +75,28 @@ comparing "with AI assistance" against the baseline.
 4. Try the interactive script (`scripts/Flyway-AI-MCP_CaptureSchemaModelAndMigration.ps1`) against
    your dev database to see the full workflow end to end before wiring up the unattended pipeline.
 
+## Using this with other AI tools
+
+This repo is written for Claude Code, but `.mcp.json` is a standard MCP server registration - any
+MCP-compatible AI tool can use the same Flyway MCP server. What differs is how each tool discovers
+and starts it:
+
+- **Claude Code** - auto-detects `.mcp.json` when you open the folder. The first time, it prompts
+  you to trust the "flyway" server (see step 3 under Getting started); after that it starts the
+  server itself whenever the project loads. No manual step needed.
+- **GitHub Copilot** (VS Code) - does not auto-start MCP servers from `.mcp.json` the same way.
+  You need to start the Flyway MCP server yourself first (e.g. run it from the command line, or
+  configure it under VS Code's MCP settings/`mcp.json` so Copilot Chat can attach to it), then
+  Copilot can call its tools. If Copilot reports the Flyway tools as unavailable, check the server
+  is actually running before assuming a config problem.
+- **Other AI tools/agents** - generically, any tool that supports the MCP protocol can point at
+  the same server definition in `.mcp.json`. Check that tool's own docs for whether it starts MCP
+  servers automatically or expects one already running - this is a per-tool behaviour, not
+  something this repo's config controls. The `CLAUDE.md` rules and `.claude/skills/` are
+  Claude-Code-specific, though; a different tool won't automatically follow those guardrails
+  unless it has its own equivalent (e.g. a system prompt or its own project instructions file)
+  pointed at the same content.
+
 ## Mimicking this pattern elsewhere
 
 The design deliberately keeps three things separate so they're easy to copy into another project:

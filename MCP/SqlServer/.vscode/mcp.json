@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "flyway": {
+      "type": "stdio",
+      "command": "flyway",
+      "args": [
+        "mcp",
+        "-mcp.toolsets=develop_migrations"
+      ]
+    }
+  }
+}
