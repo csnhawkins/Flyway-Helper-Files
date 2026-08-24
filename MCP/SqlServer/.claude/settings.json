@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__flyway__load_project",
+      "mcp__flyway__create_diff_schema_model",
+      "mcp__flyway__get_diff_details",
+      "mcp__flyway__update_schema_model",
+      "mcp__flyway__create_diff_migrations",
+      "mcp__flyway__generate_migrations",
+      "mcp__flyway__review_code",
+      "mcp__flyway__reload_project",
+      "Read",
+      "Glob",
+      "Bash(git fetch:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Skill(flyway-capture-schema)",
+      "Skill(flyway-generate-migration)"
+    ],
+    "deny": [
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git pull:*)",
+      "Bash(gh pr create:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "flyway"
+  ]
+}

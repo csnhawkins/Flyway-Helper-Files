@@ -1,0 +1,674 @@
+# ===========================
+# Pipeline: Flyway-AI-MigrationGeneration-Pipeline-Windows
+# Version: 1.0
+# Author: Redgate Software Ltd
+# Last Updated: 2026-08-18
+#
+# Uses an AI coding agent (Claude Code by default - any MCP-compatible tool works) to drive the
+# Flyway MCP server: capture schema changes, generate a migration script, and code-review it.
+# A human approves before anything lands in the development branch - the agent never commits,
+# branches, or opens a PR itself (see "Known limitations" at the bottom for what's still V1).
+# ===========================
+
+name: Flyway-AI-MigrationGeneration-Pipeline-Windows
+
+# This pipeline is about capturing changes already sitting in the development database, not
+# reacting to a code push - so it's triggered on demand or on a schedule, not on a branch push.
+# Uncomment the schedule below once you're happy running this unattended.
+trigger: none
+pr: none
+
+# schedules:
+#   - cron: "0 7,13 * * 1-5" # 7am and 1pm, Mon-Fri
+#     displayName: "Twice-daily AI migration check"
+#     branches:
+#       include:
+#         - development
+#     always: false # Only runs if there have been repository changes
+
+pool:
+  name: "$(AGENT_POOL)" # Self-hosted agent required - this is where Flyway CLI + your AI CLI tool must already be installed and licensed/authenticated
+
+variables:
+
+  ### Create a variable group (matching the name below, or your own) containing: ###
+  # AGENT_POOL - self-hosted agent pool to run this pipeline on
+  # FLYWAY_EMAIL / FLYWAY_TOKEN - only needed if Flyway isn't already authenticated on the agent
+  # FLYWAY_AUTH_DISABLED - set true to skip Flyway auth (agent is pre-authenticated)
+  #
+  # NOTE: once a variable group is involved, this block must use LIST syntax throughout (as
+  # below) - mixing it with the simpler "KEY: value" shorthand causes the group to silently not
+  # link at all.
+  - group: "ChinookGlobal"
+
+  - name: WORKING_DIRECTORY
+    value: "$(System.DefaultWorkingDirectory)"
+  - name: system.debug
+    value: 'false'
+
+  # --- Project + branching ---
+  - name: PROJECT_FOLDER
+    value: "$(WORKING_DIRECTORY)" # Folder containing flyway.toml and .mcp.json
+  - name: DEVELOPMENT_BRANCH
+    value: "development" # The branch this pipeline reads from and opens its PR against
+  - name: FEATURE_BRANCH_PREFIX
+    value: "ai-migration"
+
+  # --- AI agent configuration ---
+  # Swap AI_CLI_COMMAND for whatever your business standardizes on - the MCP server and the
+  # prompt below are tool-agnostic; only the invocation syntax changes (e.g. Copilot CLI, Cursor CLI, Gemini CLI).
+  - name: AI_CLI_COMMAND
+    value: "claude"
+  - name: AI_MAX_TURNS
+    value: "20"
+  - name: CLAUDE_RAW_OUTPUT_FILE
+    value: "$(Agent.TempDirectory)\\claude-raw-output.json"
+
+### End of Pipeline Variables ###
+
+stages:
+  - stage: GenerateMigration
+    displayName: "AI - Generate & Review Migration"
+    jobs:
+      - job: RunAgent
+        displayName: "Run AI agent against Flyway MCP server"
+        variables: # Tip - For sensitive variables, store these in a Library Variable Group and reference the name below (Click Pipelines --> Library --> + Variable Group)
+        - group: "ChinookGlobal" # Expected Variables - FLYWAY_EMAIL/FLYWAY_TOKEN/AGENT_POOL
+        - group: "SqlServer_Build" # Expected Variables - TARGET_DATABASE_URL/TARGET_DATABASE_USER/TARGET_DATABASE_PASSWORD
+
+        steps:
+          - checkout: self
+            persistCredentials: true # Needed later if this job also handled git - kept for the branch/PR job below
+
+          # Step 1 - Flyway License Authentication (skip if FLYWAY_AUTH_DISABLED=true, e.g. the demo box is already authenticated)
+          - script: |
+              flyway auth -IAgreeToTheEula -email="$(FLYWAY_EMAIL)" -token="$(FLYWAY_TOKEN)"
+            continueOnError: false
+            workingDirectory: "$(PROJECT_FOLDER)"
+            displayName: "Flyway Authentication"
+            condition: and(succeeded(), ne(variables['FLYWAY_AUTH_DISABLED'], true))
+            env:
+              FLYWAY_EMAIL: $(FLYWAY_EMAIL)
+              FLYWAY_TOKEN: $(FLYWAY_TOKEN)
+
+          # Pre-Req - Ensure Claude Code is running/on the required version on this agent.
+          # This machine has a known issue where Claude Code can stop between runs, so this
+          # script is run every time as a safety net rather than assumed to already be fine.
+          - task: PowerShell@2
+            displayName: "Claude Code - Ensure Running & Correct Version"
+            inputs:
+              targetType: "filePath"
+              filePath: "C:\\Users\\redgate\\Desktop\\StartStop\\StartClaudeCode.ps1"
+
+          # Step 2 - Runs the AI agent headlessly against the Flyway MCP server. The prompt describes
+          # the WORKFLOW rather than naming individual tool calls, so it stays resilient if Flyway's
+          # MCP tool names change in future releases. --allowedTools pre-approves the Flyway tools
+          # below (plus "Skill", needed for Claude to load the flyway-capture-schema and
+          # flyway-generate-migration project skills - without it, Claude can decide a skill's
+          # relevant but then get silently denied loading it); --disallowedTools hard-removes
+          # git/bash/file-editing tools from the agent's toolset
+          # entirely - both are required together (see notes at the bottom of this file).
+          - task: PowerShell@2
+            displayName: "AI Agent - Generate & Review Migration"
+            inputs:
+              targetType: "inline"
+              workingDirectory: "$(PROJECT_FOLDER)"
+              script: |
+                # Prevents an unattended run from silently picking up a new CLI version mid-flight.
+                $env:DISABLE_AUTOUPDATER = "1"
+
+                $prompt = @'
+                If "flyway-capture-schema" and "flyway-generate-migration" skills are available in
+                this project, use them for the workflow steps and safety rules - run capture
+                first, then generation, since they are separate skills for separate stages of the
+                same job. If they aren't available, follow this fallback:
+                  Check the development database for schema changes not yet in the schema model.
+                  For each change, get full diff details (not just which object changed, but what
+                  changed about it) before updating the schema model. Then generate a migration
+                  script and run a code review on it.
+
+                SCOPE: run the full workflow end to end - both capturing changes into the schema
+                model AND generating and reviewing a migration script for them. Don't stop partway.
+
+                This is an unattended pipeline run - there is no one available to answer a question.
+                Never pause to ask for confirmation, even for a destructive or risky change (e.g. a
+                dropped column). Instead, proceed, and record it as a high-severity issue in your
+                response so a human can review and approve or reject it afterwards.
+
+                Do not use git, bash, or any tool other than the Flyway MCP tools available to you.
+                The pipeline handles committing, branching, and opening a pull request separately -
+                your job is only to update the schema model, generate the script, and review it.
+
+                Regardless of whether a skill was available, when you are finished respond with
+                ONLY a single, raw JSON object and no other text - this applies even if there was
+                nothing to do. Do not wrap the JSON in markdown code fences or backticks (no
+                ```json). Do not explain yourself in plain prose under any circumstances. Use
+                exactly these field names - do not rename, omit, or add fields:
+                {
+                  "status": "clean" | "issues_found" | "no_changes",
+                  "migrationFile": "<path to the generated migration script, relative to the project folder, or null>",
+                  "description": "<short one-line description of the schema change, or null>",
+                  "changes": [{"type": "Add|Edit|Drop", "object": "<schema.object>", "objectType": "<Table|View|Procedure|...>", "details": "<specific, e.g. 'Dropped column ReviewText (nvarchar(1000))' or 'Added column Foo (int, not null)' - not just 'edited'>"}],
+                  "reviewSummary": "<one paragraph plain-English summary of the code review result, or a one-line note that there was nothing to change>",
+                  "rulesChecked": <number of rules checked, or 0>,
+                  "issues": ["<issue description - include anything you'd normally have asked for confirmation on, marked High severity>", "..."]
+                }
+
+                If there are no changes to the development database, respond with exactly this (still no
+                markdown fence, still these exact field names):
+                {"status": "no_changes", "migrationFile": null, "description": null, "changes": [], "reviewSummary": "No schema changes were found in the development database.", "rulesChecked": 0, "issues": []}
+                '@
+
+                $result = & $(AI_CLI_COMMAND) -p $prompt `
+                  --allowedTools "Skill,mcp__flyway__load_project,mcp__flyway__create_diff_schema_model,mcp__flyway__get_diff_details,mcp__flyway__update_schema_model,mcp__flyway__create_diff_migrations,mcp__flyway__generate_migrations,mcp__flyway__review_code" `
+                  --disallowedTools "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch" `
+                  --output-format json `
+                  --max-turns $(AI_MAX_TURNS)
+
+                $claudeExitCode = $LASTEXITCODE
+                Write-Host "Claude CLI exit code: $claudeExitCode"
+                Write-Host "--- Raw agent output (also being saved to file) ---"
+                Write-Host $result
+                Write-Host "--- End raw agent output ---"
+
+                $result | Out-File -FilePath "$(CLAUDE_RAW_OUTPUT_FILE)" -Encoding utf8
+
+                if (Test-Path "$(CLAUDE_RAW_OUTPUT_FILE)") {
+                  $fileInfo = Get-Item "$(CLAUDE_RAW_OUTPUT_FILE)"
+                  Write-Host "Raw agent output written to $(CLAUDE_RAW_OUTPUT_FILE) ($($fileInfo.Length) bytes)"
+                  if ($fileInfo.Length -eq 0) {
+                    Write-Host "##vso[task.logissue type=warning]Raw output file is empty (0 bytes) - claude produced no captured stdout. This usually means all of its output went to stderr instead, or the process was killed/timed out mid-run."
+                  }
+                } else {
+                  Write-Host "##vso[task.logissue type=error]Raw output file was NOT created at $(CLAUDE_RAW_OUTPUT_FILE) - Out-File itself may have failed (check the agent has write access to Agent.TempDirectory)."
+                }
+
+                if ($claudeExitCode -ne 0) {
+                  Write-Host "##vso[task.logissue type=error]Claude CLI exited with code $claudeExitCode - see raw output above for the reason (common cause: the .mcp.json trust prompt has never been accepted on this agent for this project - see pipeline notes at the bottom of this file)."
+                  exit $claudeExitCode
+                }
+
+          # Publish the raw output as a build artifact immediately, regardless of what happens next.
+          # Agent.TempDirectory is ephemeral and its exact cleanup timing between jobs/stages isn't
+          # something to rely on for debugging - this makes the raw output visible from the Azure
+          # DevOps run summary UI itself, no RDP/file-system access to the agent required.
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish AI Agent Raw Output (for debugging)"
+            condition: always()
+            inputs:
+              PathtoPublish: "$(CLAUDE_RAW_OUTPUT_FILE)"
+              ArtifactName: "AI-Agent-RawOutput-$(Build.BuildId)"
+
+          # Step 3 - Parse the agent's structured result and surface it as pipeline variables so
+          # later stages/jobs can branch on it without re-parsing JSON themselves.
+          - task: PowerShell@2
+            displayName: "Parse AI Agent Result"
+            inputs:
+              targetType: "inline"
+              script: |
+                if (-not (Test-Path "$(CLAUDE_RAW_OUTPUT_FILE)")) {
+                  Write-Host "##vso[task.logissue type=error]Raw output file not found at $(CLAUDE_RAW_OUTPUT_FILE) - the AI Agent step likely never ran or wrote nothing. Check that step's log directly."
+                  exit 1
+                }
+
+                $rawContent = Get-Content "$(CLAUDE_RAW_OUTPUT_FILE)" -Raw
+                if ([string]::IsNullOrWhiteSpace($rawContent)) {
+                  Write-Host "##vso[task.logissue type=error]Raw output file exists but is empty. See the AI Agent step's own log for claude's exit code and any stderr output."
+                  exit 1
+                }
+
+                # Outer layer: --output-format json always wraps the run, e.g. { "result": "...", ... }
+                try {
+                  $outer = $rawContent | ConvertFrom-Json
+                } catch {
+                  Write-Host "##vso[task.logissue type=error]Could not parse the outer JSON envelope from claude's --output-format json output. Raw content was:"
+                  Write-Host $rawContent
+                  exit 1
+                }
+
+                if (-not $outer.result) {
+                  Write-Host "##vso[task.logissue type=error]Outer JSON parsed, but had no 'result' field. Full outer object was:"
+                  Write-Host ($outer | ConvertTo-Json -Depth 5)
+                  exit 1
+                }
+
+                # Inner layer: claude's own final text response - we instructed it to reply with only JSON,
+                # but models will sometimes wrap it in a ```json ... ``` markdown fence anyway even when
+                # told not to. Strip that before parsing rather than treating it as a fatal error.
+                $innerText = $outer.result.Trim()
+                $innerText = $innerText -replace '^```(json)?\s*', ''
+                $innerText = $innerText -replace '\s*```$', ''
+
+                try {
+                  $inner = $innerText | ConvertFrom-Json
+                } catch {
+                  Write-Host "##vso[task.logissue type=error]Claude's final response wasn't valid JSON, even after stripping any markdown fence. This usually means --max-turns was too low and it got cut off mid-answer. Claude's actual response was:"
+                  Write-Host $outer.result
+                  exit 1
+                }
+
+                # Models don't always use the exact field names/shape asked for. These fall back
+                # through the near-miss names we've seen in practice, rather than failing the run.
+                $status = $inner.status
+                $migrationFile = $inner.migrationFile
+                $description = if ($inner.description) { $inner.description } else { $inner.migrationDescription }
+                $reviewSummary = if ($inner.reviewSummary) { $inner.reviewSummary }
+                                  elseif ($inner.reviewResult) { $inner.reviewResult }
+                                  elseif ($inner.changesSummary) { $inner.changesSummary }
+                                  elseif ($inner.message) { $inner.message }
+                                  else { $null }
+
+                # A one-word review result ("passed"/"clean") isn't much of a summary on its own -
+                # pad it out with whatever violation/rule-count detail is available.
+                $rulesChecked = if ($null -ne $inner.rulesChecked) { $inner.rulesChecked }
+                                  elseif ($inner.codeReview.totalRulesChecked) { $inner.codeReview.totalRulesChecked }
+                                  else { $null }
+
+                # Issues/warnings can arrive as a top-level array of strings, a top-level array of
+                # {severity,type,message} objects, or either nested under "codeReview" instead -
+                # gather from every shape seen and normalize into one readable line each.
+                function Format-IssueItem($item) {
+                  if ($null -eq $item) { return $null }
+                  if ($item -is [string]) { return $item }
+                  $parts = @()
+                  if ($item.severity) { $parts += "[$($item.severity)]" }
+                  if ($item.type) { $parts += $item.type }
+                  $msg = if ($item.message) { $item.message } elseif ($item.description) { $item.description } elseif ($item.details) { $item.details } else { $null }
+                  if ($msg) { $parts += $msg } else { $parts += ($item | ConvertTo-Json -Compress -Depth 3) }
+                  return ($parts -join ": ")
+                }
+
+                $issuesList = New-Object System.Collections.Generic.List[string]
+                foreach ($src in @($inner.issues, $inner.warnings, $inner.codeReview.issues, $inner.codeReview.warnings)) {
+                  if ($src) { foreach ($i in $src) { $formatted = Format-IssueItem $i; if ($formatted) { $issuesList.Add($formatted) } } }
+                }
+                $violationCount = if ($null -ne $inner.violations) { $inner.violations } else { $issuesList.Count }
+
+                if ($reviewSummary -and $reviewSummary.Length -le 12 -and $violationCount -ge 0) {
+                  $reviewSummary = "Code review $reviewSummary - $violationCount issue(s)/warning(s) found out of $rulesChecked rules checked."
+                }
+
+                # "changes" is genuinely useful detail for a reviewer when present - surface it if so.
+                $changesList = New-Object System.Collections.Generic.List[string]
+                if ($inner.changes) {
+                  foreach ($c in $inner.changes) {
+                    $line = "$($c.type) $($c.object)"
+                    if ($c.objectType) { $line += " ($($c.objectType))" }
+                    if ($c.details) { $line += " - $($c.details)" }
+                    $changesList.Add($line)
+                  }
+                }
+
+                # Ground truth for "what did this actually touch" - parsed from the generated SQL
+                # itself rather than trusted from the model's JSON. The model's self-reported
+                # status/description/summary fields have drifted in shape across runs enough that
+                # relying on them alone isn't reliable; the SQL file it wrote is always there and
+                # always accurate. $changesList above is kept as a nice supplementary narrative when
+                # the model does provide one, but this is what description/reviewSummary fall back to.
+                $objectsTouched = New-Object System.Collections.Generic.List[string]
+                if ($migrationFile) {
+                  $migrationFilePath = Join-Path "$(PROJECT_FOLDER)" ($migrationFile -replace '/', '\')
+                  if (Test-Path $migrationFilePath) {
+                    $sqlContent = Get-Content $migrationFilePath -Raw
+                    $objectPatterns = @(
+                      'CREATE\s+TABLE\s+([^\s(]+)', 'ALTER\s+TABLE\s+([^\s]+)', 'DROP\s+TABLE\s+([^\s;]+)',
+                      'CREATE\s+(?:OR\s+ALTER\s+)?PROCEDURE\s+([^\s(]+)', 'CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+([^\s(]+)',
+                      'CREATE\s+(?:OR\s+ALTER\s+)?FUNCTION\s+([^\s(]+)'
+                    )
+                    foreach ($objPattern in $objectPatterns) {
+                      foreach ($m in [regex]::Matches($sqlContent, $objPattern, 'IgnoreCase')) {
+                        $obj = $m.Groups[1].Value -replace '[\[\];]', ''
+                        if ($obj -and -not $objectsTouched.Contains($obj)) { $objectsTouched.Add($obj) }
+                      }
+                    }
+                  }
+                }
+
+                # Flyway migration filenames are, by convention, V<version>__<description>.sql - that
+                # description segment is a reliable fallback source even when the model's own JSON
+                # "description" field is missing.
+                if (-not $description -and $migrationFile) {
+                  $fileLeaf = Split-Path $migrationFile -Leaf
+                  if ($fileLeaf -match '^V?[\d.]+__(.+)\.sql$') { $description = $Matches[1] }
+                }
+                if (-not $description -and $objectsTouched.Count -gt 0) { $description = "Update $($objectsTouched -join ', ')" }
+                if (-not $description) { $description = "Schema migration" }
+
+                if (-not $status) {
+                  Write-Host "##vso[task.logissue type=error]Parsed JSON had no recognizable 'status' field. Parsed object was:"
+                  Write-Host ($inner | ConvertTo-Json -Depth 5)
+                  exit 1
+                }
+
+                # Guarantee a non-blank review summary even when the model didn't volunteer prose -
+                # built from the structured pieces above rather than left empty.
+                if (-not $reviewSummary) {
+                  $summaryParts = @()
+                  if ($objectsTouched.Count -gt 0) { $summaryParts += "Touches: $($objectsTouched -join ', ')" }
+                  if ($null -ne $rulesChecked) { $summaryParts += "$rulesChecked rules checked" }
+                  $summaryParts += if ($issuesList.Count -gt 0) { "$($issuesList.Count) issue(s)/warning(s) found" } else { "no issues found" }
+                  $reviewSummary = ($summaryParts -join " - ") + "."
+                }
+
+                # --- Run stats, straight from Claude Code's own --output-format json envelope. These
+                # come from the CLI itself, not the model's free-text answer, so they're always
+                # reliable regardless of how well the model followed our JSON-shape instructions.
+                $durationSeconds = [math]::Round($outer.duration_ms / 1000, 1)
+                $apiDurationSeconds = [math]::Round($outer.duration_api_ms / 1000, 1)
+                $numTurns = $outer.num_turns
+                $totalCostUsd = [math]::Round([double]$outer.total_cost_usd, 4)
+                $inputTokens = $outer.usage.input_tokens
+                $outputTokens = $outer.usage.output_tokens
+                $cacheReadTokens = $outer.usage.cache_read_input_tokens
+                $cacheWriteTokens = $outer.usage.cache_creation_input_tokens
+
+                $modelLines = @()
+                if ($outer.modelUsage) {
+                  foreach ($modelName in $outer.modelUsage.PSObject.Properties.Name) {
+                    $m = $outer.modelUsage.$modelName
+                    $modelCost = [math]::Round([double]$m.costUSD, 4)
+                    $modelLines += "$modelName - $($m.outputTokens) output tokens, `$$modelCost"
+                  }
+                }
+                $modelSummary = $modelLines -join " | "
+
+                Write-Host "Status: $status"
+                Write-Host "Migration file: $migrationFile"
+                Write-Host "Review summary: $reviewSummary"
+
+                Write-Host "##vso[task.setvariable variable=MIGRATION_STATUS;isOutput=true]$status"
+                Write-Host "##vso[task.setvariable variable=MIGRATION_FILE;isOutput=true]$migrationFile"
+                Write-Host "##vso[task.setvariable variable=MIGRATION_DESCRIPTION;isOutput=true]$description"
+                Write-Host "##vso[task.setvariable variable=REVIEW_SUMMARY;isOutput=true]$reviewSummary"
+                $changesSummary = if ($changesList.Count -gt 0) { $changesList -join '; ' } else { $objectsTouched -join ', ' }
+
+                Write-Host "##vso[task.setvariable variable=AI_OBJECTS_TOUCHED;isOutput=true]$($objectsTouched -join ', ')"
+                Write-Host "##vso[task.setvariable variable=AI_CHANGES_SUMMARY;isOutput=true]$changesSummary"
+                Write-Host "##vso[task.setvariable variable=AI_DURATION_SECONDS;isOutput=true]$durationSeconds"
+                Write-Host "##vso[task.setvariable variable=AI_NUM_TURNS;isOutput=true]$numTurns"
+                Write-Host "##vso[task.setvariable variable=AI_TOTAL_COST_USD;isOutput=true]$totalCostUsd"
+                Write-Host "##vso[task.setvariable variable=AI_MODEL_SUMMARY;isOutput=true]$modelSummary"
+                Write-Host "##vso[task.setvariable variable=MIGRATION_STATUS]$status" # also set as a plain (non-output) variable so later steps IN THIS JOB can use it in a condition
+
+                if ($status -eq "issues_found") {
+                  Write-Host "##vso[task.logissue type=warning]Code review flagged issues - a human approval gate will run before any branch/PR is created. See the AI-Migration-Report artifact for full details."
+                }
+
+                # --- Human-readable summary, for anyone reading the pipeline log rather than the raw JSON ---
+                Write-Host ""
+                Write-Host "================================================================"
+                Write-Host " AI MIGRATION SUMMARY"
+                Write-Host "================================================================"
+                $statusLabel = switch ($status) {
+                  "clean"        { "CLEAN - a PR will be raised for review" }
+                  "issues_found" { "ISSUES FOUND - human approval required before a PR is raised" }
+                  "no_changes"   { "NO CHANGES - nothing to do" }
+                  default        { $status }
+                }
+                Write-Host " Status:        $statusLabel"
+                if ($description)   { Write-Host " Change:        $description" }
+                if ($migrationFile) { Write-Host " File:          $migrationFile" }
+                if ($null -ne $rulesChecked) { Write-Host " Rules checked: $rulesChecked" }
+                if ($changesList.Count -gt 0) {
+                  Write-Host " Changes:"
+                  foreach ($c in $changesList) { Write-Host "   - $c" }
+                } elseif ($objectsTouched.Count -gt 0) {
+                  Write-Host " Objects touched (change detail unavailable): $($objectsTouched -join ', ')"
+                }
+                if ($issuesList.Count -gt 0) {
+                  Write-Host " Issues / warnings:"
+                  foreach ($issue in $issuesList) { Write-Host "   - $issue" }
+                }
+                if ($reviewSummary) {
+                  Write-Host ""
+                  Write-Host " Review notes:"
+                  Write-Host " $reviewSummary"
+                }
+                Write-Host "----------------------------------------------------------------"
+                Write-Host " AI RUN STATS"
+                Write-Host "----------------------------------------------------------------"
+                Write-Host " Duration:      ${durationSeconds}s total (${apiDurationSeconds}s model API time)"
+                Write-Host " Turns:         $numTurns"
+                Write-Host " Total cost:    `$$totalCostUsd"
+                Write-Host " Tokens:        $inputTokens in / $outputTokens out ($cacheReadTokens cache read, $cacheWriteTokens cache write)"
+                if ($modelLines.Count -gt 0) {
+                  Write-Host " Models used:"
+                  foreach ($line in $modelLines) { Write-Host "   - $line" }
+                }
+                Write-Host "================================================================"
+                Write-Host ""
+
+                # --- Write the same information out as a Markdown report, for anyone reviewing this
+                # from the Artifacts tab rather than digging through the pipeline log. This is what
+                # the approval-gate instructions point reviewers at when issues are found.
+                $reportLines = New-Object System.Collections.Generic.List[string]
+                $reportLines.Add("# AI Migration Report")
+                $reportLines.Add("")
+                $reportLines.Add("**Status:** $statusLabel")
+                if ($description)   { $reportLines.Add("**Change:** $description") }
+                if ($migrationFile) { $reportLines.Add("**Migration file:** ``$migrationFile``") }
+                $reportLines.Add("")
+                if ($changesList.Count -gt 0) {
+                  $reportLines.Add("## Changes")
+                  foreach ($c in $changesList) { $reportLines.Add("- $c") }
+                  $reportLines.Add("")
+                } elseif ($objectsTouched.Count -gt 0) {
+                  $reportLines.Add("## Objects touched (change detail unavailable)")
+                  $reportLines.Add($objectsTouched -join ', ')
+                  $reportLines.Add("")
+                }
+                $reportLines.Add("## Code review")
+                if ($null -ne $rulesChecked) { $reportLines.Add("Rules checked: $rulesChecked") }
+                if ($issuesList.Count -gt 0) {
+                  $reportLines.Add("")
+                  $reportLines.Add("### :warning: Issues / warnings found")
+                  foreach ($issue in $issuesList) { $reportLines.Add("- $issue") }
+                } else {
+                  $reportLines.Add("No issues or warnings were raised.")
+                }
+                if ($reviewSummary) {
+                  $reportLines.Add("")
+                  $reportLines.Add("**Review notes:** $reviewSummary")
+                }
+                $reportLines.Add("")
+                $reportLines.Add("## AI run stats")
+                $reportLines.Add("- Duration: ${durationSeconds}s total (${apiDurationSeconds}s model API time)")
+                $reportLines.Add("- Turns: $numTurns")
+                $reportLines.Add("- Total cost: `$$totalCostUsd")
+                $reportLines.Add("- Tokens: $inputTokens in / $outputTokens out ($cacheReadTokens cache read, $cacheWriteTokens cache write)")
+                if ($modelLines.Count -gt 0) {
+                  $reportLines.Add("- Models used:")
+                  foreach ($line in $modelLines) { $reportLines.Add("  - $line") }
+                }
+                if ($status -eq "issues_found") {
+                  $reportLines.Add("")
+                  $reportLines.Add("---")
+                  $reportLines.Add("**This migration requires human approval before a PR is raised** - see the pending check on this pipeline run.")
+                }
+
+                $reportDir = "$(Build.ArtifactStagingDirectory)\AIReport"
+                New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+                $reportLines -join "`n" | Set-Content -Path "$reportDir\migration-report.md" -Encoding utf8
+                Write-Host "Human-readable report written to $reportDir\migration-report.md"
+            name: ParseResult
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish AI Migration Report"
+            condition: and(succeeded(), in(variables['MIGRATION_STATUS'], 'clean', 'issues_found'))
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)\\AIReport"
+              ArtifactName: "AI-Migration-Report-$(Build.BuildId)"
+
+          # The next stage runs as a SEPARATE job, and file-system continuity between jobs on a
+          # self-hosted agent is not something to rely on (workspace cleanup timing varies). Publish
+          # the files Claude actually generated as a build artifact so the next stage can restore
+          # them explicitly, rather than assuming they're still sitting on disk. Runs for
+          # issues_found too, since the reviewer needs to see the actual diff, not just the report.
+          - task: CopyFiles@2
+            displayName: "Stage Generated Migration Files for Publish"
+            condition: and(succeeded(), in(variables['MIGRATION_STATUS'], 'clean', 'issues_found'))
+            inputs:
+              SourceFolder: "$(PROJECT_FOLDER)"
+              Contents: |
+                schema-model/**
+                migrations/**
+              TargetFolder: "$(Build.ArtifactStagingDirectory)/GeneratedMigration"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Generated Migration Files"
+            condition: and(succeeded(), in(variables['MIGRATION_STATUS'], 'clean', 'issues_found'))
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)/GeneratedMigration"
+              ArtifactName: "GeneratedMigration-$(Build.BuildId)"
+
+  - stage: RaisePullRequest
+    displayName: "Raise PR for Human Review"
+    dependsOn: GenerateMigration
+    condition: in(dependencies.GenerateMigration.outputs['RunAgent.ParseResult.MIGRATION_STATUS'], 'clean', 'issues_found')
+    variables:
+      MIGRATION_STATUS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.MIGRATION_STATUS'] ]
+      MIGRATION_FILE: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.MIGRATION_FILE'] ]
+      MIGRATION_DESCRIPTION: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.MIGRATION_DESCRIPTION'] ]
+      REVIEW_SUMMARY: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.REVIEW_SUMMARY'] ]
+      AI_OBJECTS_TOUCHED: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_OBJECTS_TOUCHED'] ]
+      AI_CHANGES_SUMMARY: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_CHANGES_SUMMARY'] ]
+      AI_DURATION_SECONDS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_DURATION_SECONDS'] ]
+      AI_NUM_TURNS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_NUM_TURNS'] ]
+      AI_TOTAL_COST_USD: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_TOTAL_COST_USD'] ]
+      AI_MODEL_SUMMARY: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_MODEL_SUMMARY'] ]
+    jobs:
+      # ManualValidation@0 is an "agentless" task - it can only run on the special server job
+      # target, not on a normal agent pool alongside checkout/git steps. It needs its own job.
+      - job: ApprovalGate
+        displayName: "Approval Gate (only runs if issues were found)"
+        pool: server
+        condition: eq(variables['MIGRATION_STATUS'], 'issues_found')
+        steps:
+          - task: ManualValidation@0
+            displayName: "Approval Required - Code Review Issues Found"
+            timeoutInMinutes: 1440 # 1 day - adjust to fit your team's review cadence
+            inputs:
+              notifyUsers: "" # add reviewer emails/groups here so they're notified when this pauses
+              instructions: "The AI code review flagged issues with this migration - see the AI-Migration-Report-$(Build.BuildId) artifact (from the GenerateMigration stage) for full details before deciding. Approve to raise a PR anyway for human review in Azure DevOps. Reject to stop here without creating a branch or PR."
+              onTimeout: "reject"
+
+      - job: BranchAndPR
+        displayName: "Create feature branch and open PR"
+        dependsOn: ApprovalGate
+        # Proceed if the gate was approved, OR if it was skipped entirely (status was 'clean', so
+        # no approval was ever needed). Only an explicit reject (job result 'Failed') stops this.
+        condition: in(dependencies.ApprovalGate.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+        steps:
+          - checkout: self
+            persistCredentials: true # Required so git can push using the pipeline's own auth
+
+          # Restore the exact files Claude generated in the previous stage - see the note on the
+          # publish step for why we don't just assume they're still on disk from the other job.
+          - task: DownloadBuildArtifacts@0
+            displayName: "Download Generated Migration Files"
+            inputs:
+              buildType: "current"
+              downloadType: "single"
+              artifactName: "GeneratedMigration-$(Build.BuildId)"
+              downloadPath: "$(System.ArtifactsDirectory)"
+
+          - task: CopyFiles@2
+            displayName: "Restore Generated Migration Files into Working Copy"
+            inputs:
+              SourceFolder: "$(System.ArtifactsDirectory)/GeneratedMigration-$(Build.BuildId)"
+              Contents: "**"
+              TargetFolder: "$(PROJECT_FOLDER)"
+              OverWrite: true
+
+          - task: PowerShell@2
+            displayName: "Create branch, commit generated migration, push"
+            inputs:
+              targetType: "inline"
+              workingDirectory: "$(WORKING_DIRECTORY)"
+              script: |
+                # Build a readable branch name from Claude's own one-line description of the change,
+                # rather than a bare timestamp/build ID - e.g. ai-migration/add-offers-table-20260817-1432
+                function ConvertTo-Slug($text) {
+                  if ([string]::IsNullOrWhiteSpace($text)) { return "migration" }
+                  $slug = $text.ToLower() -replace '[^a-z0-9]+', '-'
+                  $slug = $slug.Trim('-')
+                  if ($slug.Length -gt 50) { $slug = $slug.Substring(0, 50).Trim('-') }
+                  if ([string]::IsNullOrWhiteSpace($slug)) { return "migration" }
+                  return $slug
+                }
+
+                $slug = ConvertTo-Slug "$(MIGRATION_DESCRIPTION)"
+                $timestamp = Get-Date -Format "yyyyMMdd-HHmm"
+                $branchPrefix = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "$(FEATURE_BRANCH_PREFIX)/needs-review" } else { "$(FEATURE_BRANCH_PREFIX)" }
+                $branchName = "$branchPrefix/$slug-$timestamp"
+
+                git config user.email "flyway-ai-bot@$(Build.Repository.Name)"
+                git config user.name "Flyway AI Agent"
+
+                git checkout "$(DEVELOPMENT_BRANCH)"
+                git pull origin "$(DEVELOPMENT_BRANCH)"
+                git checkout -b $branchName
+
+                git add "$(PROJECT_FOLDER)\schema-model" "$(PROJECT_FOLDER)\migrations"
+                git status
+                git commit -m "AI-generated migration: $(MIGRATION_DESCRIPTION)"
+                git push origin $branchName
+
+                Write-Host "##vso[task.setvariable variable=FEATURE_BRANCH_NAME]$branchName"
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+          # Uses the Azure DevOps REST API directly so this works the same on any ADO
+          # flavor (Services or on-prem Server) without an extra CLI dependency.
+          - task: PowerShell@2
+            displayName: "Open pull request into development"
+            inputs:
+              targetType: "inline"
+              script: |
+                $titlePrefix = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "[Approved despite review issues] " } else { "" }
+                $titleSuffix = if ("$(AI_OBJECTS_TOUCHED)") { " ($(AI_OBJECTS_TOUCHED))" } else { "" }
+                $exceptionNote = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "`n`n---`n**:warning: This migration was approved despite code review issues being flagged.** See the AI-Migration-Report-$(Build.BuildId) artifact (GenerateMigration stage) for full details of what was flagged before merging." } else { "" }
+
+                $body = @{
+                  sourceRefName = "refs/heads/$(FEATURE_BRANCH_NAME)"
+                  targetRefName = "refs/heads/$(DEVELOPMENT_BRANCH)"
+                  title = "$($titlePrefix)AI-generated migration: $(MIGRATION_DESCRIPTION)$titleSuffix"
+                  description = "This migration was generated and reviewed by an AI agent via the Flyway MCP server.`n`n**Changes:**`n$(AI_CHANGES_SUMMARY)`n`n**Code review summary:**`n$(REVIEW_SUMMARY)`n`n**Generated file:** $(MIGRATION_FILE)`n`n---`n**AI run stats:** $(AI_NUM_TURNS) turns, $(AI_DURATION_SECONDS)s, `$$(AI_TOTAL_COST_USD)`n$(AI_MODEL_SUMMARY)$exceptionNote`n`n---`nPlease review before merging - this PR was not merged automatically."
+                } | ConvertTo-Json
+
+                $uri = "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.Name)/pullrequests?api-version=6.1-preview.1"
+                $headers = @{ Authorization = "Bearer $(System.AccessToken)" }
+
+                Invoke-RestMethod -Uri $uri -Method Post -Headers $headers -Body $body -ContentType "application/json"
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+# ===========================
+# ONE-TIME SETUP (required before this pipeline will run)
+#
+# 1. Repo permissions: grant the Build Service account "Contribute", "Create branch", and
+#    "Contribute to pull requests" on this repo (Project Settings > Repositories > Security).
+# 2. Enable "Allow scripts to access the OAuth token" on this pipeline's Agent Job settings -
+#    required for the git push and PR steps to use System.AccessToken.
+# 3. On the agent machine, under the account the agent service runs as: run `claude` once
+#    interactively in this project folder and accept the "New MCP server found in .mcp.json:
+#    flyway" trust prompt ("Use this and all future MCP servers in this project"). That decision
+#    is stored on disk and is what every unattended run relies on - skipping this is the most
+#    common cause of the AI agent step failing immediately with no useful output.
+# 4. Confirm Flyway is authenticated on the agent (or set FLYWAY_AUTH_DISABLED=true), and that
+#    your AI CLI of choice is installed and licensed there too.
+#
+# KNOWN LIMITATIONS (V1 - worth addressing before wider customer distribution)
+#
+# - The AI agent step uses --allowedTools (pre-approve the specific Flyway MCP tools) together
+#   with --disallowedTools (hard-remove Claude's default built-in tools: Bash, Read, Write, Edit,
+#   etc.). Both are needed - --allowedTools alone does NOT restrict Claude to only the listed
+#   tools, it's additive on top of the built-in toolset, so the explicit deny list is what
+#   actually enforces the boundary. Do not add --dangerously-skip-permissions or any
+#   --permission-mode bypass flag to this step - both are confirmed to override --disallowedTools
+#   entirely, which would silently undo this restriction.
+# - notifyUsers on the approval gate is empty - add reviewer emails/groups before relying on it.
+# - Swap "claude" and its flags for your standardized AI tool's headless-mode equivalent if not
+#   using Claude Code - the MCP server and .mcp.json itself don't change.
+# - No retry/timeout handling around the AI agent step, and no hard cost cap beyond --max-turns.
+# ===========================
