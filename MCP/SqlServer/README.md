@@ -56,10 +56,14 @@ resolved automatically from the script's own location, so this works wherever th
 
 Runs headlessly on a schedule or on demand: captures changes, generates a script, code-reviews it,
 and - only if the review is clean or a human approves despite flagged issues - raises a branch and
-pull request for a person to merge. It never merges anything itself. See the "ONE-TIME SETUP" and
-"KNOWN LIMITATIONS" comments at the bottom of that file before running it for real; in particular,
-never add `--dangerously-skip-permissions` or a `--permission-mode` bypass to the AI agent step -
-either one silently overrides `--disallowedTools` and removes every guardrail above.
+pull request for a person to merge. It never merges anything itself. Uses a two-phase design: the
+AI agent runs the Flyway MCP workflow first, then a deterministic step reads the result back out
+of the actual tool calls (not the agent's own summary of them), and a second, separate AI call adds
+a short viability/deployment-risk opinion on top - the PR clearly separates that opinion from the
+hard facts underneath it. See the "TWO-PHASE DESIGN", "ONE-TIME SETUP", and "KNOWN LIMITATIONS"
+comments in that file before running it for real; in particular, never add
+`--dangerously-skip-permissions` or a `--permission-mode` bypass to either AI agent step - either
+one silently overrides `--disallowedTools` and removes every guardrail above.
 
 There are also two non-AI pipelines in `AzureDevOps/` (`...-Build_Windows.yml` and the standard
 `...-Pipeline_Windows.yml`) for plain Flyway CI/CD without an AI agent involved, useful for

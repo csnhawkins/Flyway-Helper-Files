@@ -1,51 +1,44 @@
-If "flyway-capture-schema" and "flyway-generate-migration" skills are available in
-this project, use them for the workflow steps and safety rules - run capture
-first, then generation, since they are separate skills for separate stages of the
-same job. If they aren't available, follow this fallback:
-  Check the development database for schema changes not yet in the schema model.
-  For each change, get full diff details (not just which object changed, but what
-  changed about it) before updating the schema model. Then generate a migration
-  script and run a code review on it.
+You are running unattended, inside a CI/CD pipeline. There is no one available to
+answer a question of any kind, about anything - not about a destructive change, not
+about which Flyway MCP tool to use next, not about anything else. Nothing you say is
+parsed or relied upon afterwards - a separate, deterministic step reads back exactly
+which tools you called and what they returned to build the actual report. Your only
+job is to complete the workflow below using the real tools; how you narrate it doesn't
+matter.
 
-SCOPE: run the full workflow end to end - both capturing changes into the schema
-model AND generating and reviewing a migration script for them. Don't stop partway.
+Follow this procedure, in order, without skipping or stopping partway:
 
-MANDATORY: you must actually call the Flyway MCP tools (load_project, then a diff
-tool, etc.) to reach any conclusion - never respond with "no_changes" or any other
-status based on assumption, prior knowledge, or without tool calls to back it up.
-Answering without having called at least load_project and a diff tool is treated as
-a failed run, not a valid "no changes" result.
+1. Load the project. If "flyway-capture-schema" and "flyway-generate-migration"
+   skills are available, use them for these steps and their safety rules instead of
+   the fallback description below - they cover the same ground in more detail.
 
-This is an unattended pipeline run - there is no one available to answer a question.
-Never pause to ask for confirmation, even for a destructive or risky change (e.g. a
-dropped column) - do not use AskUserQuestion or any other tool that pauses for human
-input, it is not available in this run and attempting it wastes a turn. Instead,
-proceed, and record it as a high-severity issue in your response so a human can
-review and approve or reject it afterwards.
+2. Diff the development database against the schema model.
+
+3. For EVERY change the diff reports - regardless of type, whether it is an Add, an
+   Edit, or a Drop - get its full detail (not just which object changed, but what
+   changed about it) and then capture it into the schema model. Do not skip, filter,
+   defer, or ask about any change because of its type. A Drop is not a reason to
+   pause - the record of what you dropped and why is what the tool calls themselves
+   leave behind, and that is what gets reviewed, not anything you say about it here.
+
+4. Once every change from step 3 is captured, generate the migration script for all
+   of them together, then run the code review on it.
+
+5. You are now done. Briefly say so in plain English - this is for a person reading
+   the pipeline log live, not for anything that gets parsed.
+
+If, at any point, you notice yourself about to write something that functions as a
+question - "should I...", "can you confirm...", "is it OK if...", or reaching for
+AskUserQuestion or any similar tool - stop mid-thought and re-read step 3 or step 4
+above instead: the answer is always "yes, continue the procedure," never "wait." This
+applies equally to a decision about the schema change itself and to any uncertainty
+about how to use the Flyway MCP tools - if a tool call's exact effect is unclear, make
+the reasonable choice and move on.
 
 Do not use git, bash, or any tool other than the Flyway MCP tools available to you.
 The pipeline handles committing, branching, and opening a pull request separately -
 your job is only to update the schema model, generate the script, and review it.
 
-Regardless of whether a skill was available, when you are finished respond with
-ONLY a single, raw JSON object and no other text - this applies even if there was
-nothing to do, even if a tool call was denied or failed, and even if you are only
-partway through the workflow when you run out of turns. Do not wrap the JSON in
-markdown code fences or backticks (no ```json). Do not explain yourself in plain
-prose under any circumstances - if something went wrong, put that explanation in the
-"issues" field of the JSON below, not in free text outside it. Do not use emoji
-anywhere in your response. Use exactly these field names - do not rename, omit, or
-add fields:
-{
-  "status": "clean" | "issues_found" | "no_changes",
-  "migrationFile": "<path to the generated migration script, relative to the project folder, or null>",
-  "description": "<short one-line description of the schema change, or null>",
-  "changes": [{"type": "Add|Edit|Drop", "object": "<schema.object>", "objectType": "<Table|View|Procedure|...>", "details": "<specific, e.g. 'Dropped column ReviewText (nvarchar(1000))' or 'Added column Foo (int, not null)' - not just 'edited'>"}],
-  "reviewSummary": "<one paragraph plain-English summary of the code review result, or a one-line note that there was nothing to change>",
-  "rulesChecked": <number of rules checked, or 0>,
-  "issues": ["<issue description - include anything you'd normally have asked for confirmation on, marked High severity>", "..."]
-}
-
-If there are no changes to the development database, respond with exactly this (still no
-markdown fence, still these exact field names):
-{"status": "no_changes", "migrationFile": null, "description": null, "changes": [], "reviewSummary": "No schema changes were found in the development database.", "rulesChecked": 0, "issues": []}
+You must actually call the Flyway MCP tools (load_project, then a diff tool, etc.) to
+reach any conclusion - never decide there is nothing to do based on assumption or
+prior knowledge, without a diff tool call to back it up.

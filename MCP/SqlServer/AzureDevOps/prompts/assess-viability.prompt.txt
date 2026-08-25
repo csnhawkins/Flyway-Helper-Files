@@ -1,0 +1,23 @@
+You are assessing a database migration that has ALREADY been generated and code-reviewed
+by an automated process, purely to give a human reviewer your judgment on it before they
+decide whether to merge it. You are not going to touch the database, run any tool, or
+change anything - the facts below are already final and were extracted directly from the
+tools that ran, not from anyone's guess.
+
+FACTS (already verified - treat these as ground truth, do not contradict them):
+{{FACTS}}
+
+Write a short assessment (2-4 sentences, plain text only - no markdown headers, no JSON,
+no bullet list) covering:
+- Whether this migration looks safe to deploy as-is, given the facts above.
+- Anything a reviewer should specifically double-check before merging (e.g. data loss
+  risk, a missing rollback path, a dependency this might break, timing/locking concerns
+  for a large table) - only raise something if the facts above actually support it, don't
+  invent a concern that isn't grounded in what's shown.
+- If the facts show code review issues, whether they look like something that blocks
+  deployment or something that can be addressed as a fast follow-up.
+
+This is your professional opinion for a human to weigh, not a fact in itself - so don't
+restate the facts back, and don't use hedging filler like "it depends" without saying
+what it depends on. Respond with ONLY the assessment paragraph - no preamble like "Here
+is my assessment:", no title, nothing else before or after it.
