@@ -63,6 +63,8 @@ variables:
     value: "20"
   - name: CLAUDE_RAW_OUTPUT_FILE
     value: "$(Agent.TempDirectory)\\claude-raw-output.json"
+  - name: PROMPTS_FOLDER
+    value: "$(WORKING_DIRECTORY)\\AzureDevOps\\prompts" # Prompt text lives in its own files (see that folder) so it can be edited/reviewed without touching pipeline YAML
 
 ### End of Pipeline Variables ###
 
@@ -117,59 +119,104 @@ stages:
                 # Prevents an unattended run from silently picking up a new CLI version mid-flight.
                 $env:DISABLE_AUTOUPDATER = "1"
 
-                $prompt = @'
-                If "flyway-capture-schema" and "flyway-generate-migration" skills are available in
-                this project, use them for the workflow steps and safety rules - run capture
-                first, then generation, since they are separate skills for separate stages of the
-                same job. If they aren't available, follow this fallback:
-                  Check the development database for schema changes not yet in the schema model.
-                  For each change, get full diff details (not just which object changed, but what
-                  changed about it) before updating the schema model. Then generate a migration
-                  script and run a code review on it.
-
-                SCOPE: run the full workflow end to end - both capturing changes into the schema
-                model AND generating and reviewing a migration script for them. Don't stop partway.
-
-                This is an unattended pipeline run - there is no one available to answer a question.
-                Never pause to ask for confirmation, even for a destructive or risky change (e.g. a
-                dropped column). Instead, proceed, and record it as a high-severity issue in your
-                response so a human can review and approve or reject it afterwards.
-
-                Do not use git, bash, or any tool other than the Flyway MCP tools available to you.
-                The pipeline handles committing, branching, and opening a pull request separately -
-                your job is only to update the schema model, generate the script, and review it.
-
-                Regardless of whether a skill was available, when you are finished respond with
-                ONLY a single, raw JSON object and no other text - this applies even if there was
-                nothing to do. Do not wrap the JSON in markdown code fences or backticks (no
-                ```json). Do not explain yourself in plain prose under any circumstances. Use
-                exactly these field names - do not rename, omit, or add fields:
-                {
-                  "status": "clean" | "issues_found" | "no_changes",
-                  "migrationFile": "<path to the generated migration script, relative to the project folder, or null>",
-                  "description": "<short one-line description of the schema change, or null>",
-                  "changes": [{"type": "Add|Edit|Drop", "object": "<schema.object>", "objectType": "<Table|View|Procedure|...>", "details": "<specific, e.g. 'Dropped column ReviewText (nvarchar(1000))' or 'Added column Foo (int, not null)' - not just 'edited'>"}],
-                  "reviewSummary": "<one paragraph plain-English summary of the code review result, or a one-line note that there was nothing to change>",
-                  "rulesChecked": <number of rules checked, or 0>,
-                  "issues": ["<issue description - include anything you'd normally have asked for confirmation on, marked High severity>", "..."]
+                # Prompt text lives in AzureDevOps/prompts/ (not inline here) - it's the part of this
+                # pipeline most likely to need tweaking (wording, JSON shape, guardrail phrasing),
+                # and keeping it as plain text means it can be edited/reviewed as its own diff without
+                # touching pipeline YAML/PowerShell escaping.
+                $promptFile = Join-Path "$(PROMPTS_FOLDER)" "generate-migration.prompt.txt"
+                if (-not (Test-Path $promptFile)) {
+                  Write-Host "##vso[task.logissue type=error]Prompt file not found at $promptFile - expected it alongside this pipeline under AzureDevOps/prompts/. Has the repo checkout succeeded, or was this file moved/renamed?"
+                  exit 1
                 }
+                $prompt = Get-Content -Raw -Path $promptFile
 
-                If there are no changes to the development database, respond with exactly this (still no
-                markdown fence, still these exact field names):
-                {"status": "no_changes", "migrationFile": null, "description": null, "changes": [], "reviewSummary": "No schema changes were found in the development database.", "rulesChecked": 0, "issues": []}
-                '@
-
-                $result = & $(AI_CLI_COMMAND) -p $prompt `
+                # Streamed (not --output-format json) so each tool call and narration line prints
+                # live as Claude works - the same visibility the interactive PowerShell script gives
+                # you, instead of a single blob only visible after the whole run finishes. This
+                # matters most exactly when something's wrong (e.g. the agent diffing a different
+                # database than expected) - a silent "no changes" result gives no clue why, but a
+                # live "> load_project..." / "> create_diff_schema_model..." trail does.
+                $finalResultLine = $null
+                & $(AI_CLI_COMMAND) -p $prompt `
                   --allowedTools "Skill,mcp__flyway__load_project,mcp__flyway__create_diff_schema_model,mcp__flyway__get_diff_details,mcp__flyway__update_schema_model,mcp__flyway__create_diff_migrations,mcp__flyway__generate_migrations,mcp__flyway__review_code" `
-                  --disallowedTools "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch" `
-                  --output-format json `
-                  --max-turns $(AI_MAX_TURNS)
+                  --disallowedTools "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch,AskUserQuestion" `
+                  --output-format stream-json `
+                  --verbose `
+                  --max-turns $(AI_MAX_TURNS) | ForEach-Object {
+                    $line = $_
+                    if ([string]::IsNullOrWhiteSpace($line)) { return }
+                    try { $evt = $line | ConvertFrom-Json } catch { return }
+
+                    switch ($evt.type) {
+                      "assistant" {
+                        foreach ($block in $evt.message.content) {
+                          if ($block.type -eq "tool_use") {
+                            $toolLabel = $block.name -replace '^mcp__flyway__', ''
+                            Write-Host "  > $toolLabel..."
+                          } elseif ($block.type -eq "text" -and $block.text) {
+                            Write-Host "  $($block.text)"
+                          }
+                        }
+                      }
+                      "result" { $script:finalResultLine = $line }
+                      default { } # system/init and tool_result events are noisy - not shown live
+                    }
+                  }
 
                 $claudeExitCode = $LASTEXITCODE
                 Write-Host "Claude CLI exit code: $claudeExitCode"
-                Write-Host "--- Raw agent output (also being saved to file) ---"
+
+                if (-not $finalResultLine) {
+                  Write-Host "##vso[task.logissue type=warning]No final 'result' event was seen in the streamed output - the run likely errored or hit --max-turns before finishing. Nothing usable to parse; see the live tool-call trail above for where it stopped."
+                }
+
+                # The model doesn't reliably obey "respond with ONLY JSON" once it feels the job is
+                # done - seen in practice narrating a "Workflow Complete" markdown summary instead,
+                # even on a clean run with zero tool denials or errors. Rather than fail the whole
+                # pipeline on a formatting slip after a successful run, ask once more - in the SAME
+                # session via --resume, with every tool (including the Flyway ones) disallowed so it
+                # has nothing to do but restate what it already did as the required JSON.
+                $outerProbe = $null
+                if ($finalResultLine) { try { $outerProbe = $finalResultLine | ConvertFrom-Json } catch {} }
+
+                $innerIsValidJson = $false
+                if ($outerProbe -and $outerProbe.result) {
+                  $probeText = $outerProbe.result.Trim() -replace '^```(json)?\s*', '' -replace '\s*```$', ''
+                  try { $null = $probeText | ConvertFrom-Json; $innerIsValidJson = $true } catch {}
+                }
+
+                if ($outerProbe -and -not $innerIsValidJson -and $outerProbe.session_id) {
+                  Write-Host ""
+                  Write-Host "Claude's final answer wasn't the required strict JSON - asking it to restate the result in the same session (no tools available, so it can only answer from what it already did)..."
+
+                  $retryPromptFile = Join-Path "$(PROMPTS_FOLDER)" "restate-as-json.prompt.txt"
+                  if (-not (Test-Path $retryPromptFile)) {
+                    Write-Host "##vso[task.logissue type=error]Prompt file not found at $retryPromptFile - expected it alongside this pipeline under AzureDevOps/prompts/. Skipping the retry; the run will fail at the parse step instead."
+                  } else {
+                    $jsonOnlyPrompt = Get-Content -Raw -Path $retryPromptFile
+
+                    $retryOutputLines = & $(AI_CLI_COMMAND) -p $jsonOnlyPrompt `
+                      --resume $outerProbe.session_id `
+                      --disallowedTools "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch,AskUserQuestion,Skill,mcp__flyway__load_project,mcp__flyway__create_diff_schema_model,mcp__flyway__get_diff_details,mcp__flyway__update_schema_model,mcp__flyway__create_diff_migrations,mcp__flyway__generate_migrations,mcp__flyway__review_code" `
+                      --output-format json `
+                      --max-turns 3
+                    $retryResultLine = $retryOutputLines -join "`n"
+
+                    Write-Host "--- Retry (restate-as-JSON) result envelope ---"
+                    Write-Host $retryResultLine
+                    Write-Host "--- End retry result envelope ---"
+
+                    if ($retryResultLine) { $finalResultLine = $retryResultLine }
+                  }
+                }
+
+                # Downstream steps (Parse AI Agent Result) expect the same single-JSON-envelope
+                # shape --output-format json used to write here - the streamed "result" event has
+                # that same shape, so only that one line is written, not the whole stream.
+                $result = $finalResultLine
+                Write-Host "--- Final result envelope (also being saved to file) ---"
                 Write-Host $result
-                Write-Host "--- End raw agent output ---"
+                Write-Host "--- End final result envelope ---"
 
                 $result | Out-File -FilePath "$(CLAUDE_RAW_OUTPUT_FILE)" -Encoding utf8
 
@@ -340,6 +387,65 @@ stages:
                   exit 1
                 }
 
+                # A real run of this workflow needs multiple tool round-trips at minimum (load the
+                # project, diff it, and - if there's drift - update the model/generate/review). A
+                # "no_changes" result reached in a single turn means Claude answered without ever
+                # calling a Flyway MCP tool to check - it guessed, it didn't verify. Seen in practice
+                # (num_turns: 1, non-matching JSON field names). Treat this as a failed run rather
+                # than trusting a "no changes" conclusion nobody actually checked.
+                if ($status -eq "no_changes" -and [int]$outer.num_turns -le 1) {
+                  Write-Host "##vso[task.logissue type=error]Claude reported 'no_changes' after only $($outer.num_turns) turn(s) - this is too few for it to have actually called load_project and a diff tool. Treating this as an unverified/failed run rather than a trustworthy 'no changes' result. Re-run the pipeline; if this recurs, see the AI Agent step's live tool-call log to see whether any Flyway tools were called at all."
+                  exit 1
+                }
+
+                # Destructive changes get their own explicit call-out - a time-pressed reviewer (a
+                # DBA skimming a PR list) needs to see "this drops a table" before anything else,
+                # not buried inside a comma-separated line of every object touched.
+                $destructiveTypes = @('Drop')
+                $destructiveChanges = New-Object System.Collections.Generic.List[string]
+                if ($inner.changes) {
+                  foreach ($c in $inner.changes) {
+                    if ($destructiveTypes -contains $c.type) {
+                      $line = "$($c.object)"
+                      if ($c.objectType) { $line += " ($($c.objectType))" }
+                      if ($c.details) { $line += " - $($c.details)" }
+                      $destructiveChanges.Add($line)
+                    }
+                  }
+                }
+                $hasDestructiveChanges = $destructiveChanges.Count -gt 0
+
+                # Bulleted, multi-line renderings for the PR body/report - a run-on sentence of every
+                # change and every issue is exactly what gets skipped when someone has five minutes
+                # to review. Bullets, and the actual issue text (not just a count), read in seconds.
+                $changesBullets = if ($changesList.Count -gt 0) { ($changesList | ForEach-Object { "- $_" }) -join "`n" }
+                                    elseif ($objectsTouched.Count -gt 0) { "- " + ($objectsTouched -join ', ') }
+                                    else { "- (none)" }
+                $issuesBullets = if ($issuesList.Count -gt 0) { ($issuesList | ForEach-Object { "- $_" }) -join "`n" }
+                                    else { "- No issues or warnings found." }
+                $destructiveBullets = if ($hasDestructiveChanges) { ($destructiveChanges | ForEach-Object { "- $_" }) -join "`n" } else { "" }
+
+                # One-line, decision-oriented verdict for the very top of the PR/report - built from
+                # what's structurally known (destructive changes, issue count), not trusted from the
+                # model's own prose, so the risk read doesn't depend on how well it phrased things.
+                $quickSummary = if ($hasDestructiveChanges -and $issuesList.Count -gt 0) {
+                  "NEEDS CAREFUL REVIEW - includes a destructive change (drop) AND $($issuesList.Count) code review issue(s)."
+                } elseif ($hasDestructiveChanges) {
+                  "NEEDS REVIEW - includes a destructive change (drop). Confirm this is intentional before merging."
+                } elseif ($issuesList.Count -gt 0) {
+                  "NEEDS REVIEW - $($issuesList.Count) code review issue(s) flagged, no destructive changes."
+                } else {
+                  "LOW RISK - no destructive changes, code review clean."
+                }
+
+                # Azure DevOps logging commands are parsed one line at a time, so a variable value
+                # containing raw newlines/% would corrupt the command - encode before setting,
+                # ADO decodes automatically when the variable is substituted back in later steps.
+                function ConvertTo-VsoSafe($text) {
+                  if ($null -eq $text) { return "" }
+                  return $text -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
+                }
+
                 # Guarantee a non-blank review summary even when the model didn't volunteer prose -
                 # built from the structured pieces above rather than left empty.
                 if (-not $reviewSummary) {
@@ -388,6 +494,12 @@ stages:
                 Write-Host "##vso[task.setvariable variable=AI_NUM_TURNS;isOutput=true]$numTurns"
                 Write-Host "##vso[task.setvariable variable=AI_TOTAL_COST_USD;isOutput=true]$totalCostUsd"
                 Write-Host "##vso[task.setvariable variable=AI_MODEL_SUMMARY;isOutput=true]$modelSummary"
+                Write-Host "##vso[task.setvariable variable=AI_QUICK_SUMMARY;isOutput=true]$quickSummary"
+                Write-Host "##vso[task.setvariable variable=AI_HAS_DESTRUCTIVE;isOutput=true]$hasDestructiveChanges"
+                Write-Host "##vso[task.setvariable variable=AI_DESTRUCTIVE_BULLETS;isOutput=true]$(ConvertTo-VsoSafe $destructiveBullets)"
+                Write-Host "##vso[task.setvariable variable=AI_CHANGES_BULLETS;isOutput=true]$(ConvertTo-VsoSafe $changesBullets)"
+                Write-Host "##vso[task.setvariable variable=AI_ISSUES_BULLETS;isOutput=true]$(ConvertTo-VsoSafe $issuesBullets)"
+                Write-Host "##vso[task.setvariable variable=AI_RULES_CHECKED;isOutput=true]$rulesChecked"
                 Write-Host "##vso[task.setvariable variable=MIGRATION_STATUS]$status" # also set as a plain (non-output) variable so later steps IN THIS JOB can use it in a condition
 
                 if ($status -eq "issues_found") {
@@ -405,10 +517,15 @@ stages:
                   "no_changes"   { "NO CHANGES - nothing to do" }
                   default        { $status }
                 }
+                Write-Host " Quick summary: $quickSummary"
                 Write-Host " Status:        $statusLabel"
                 if ($description)   { Write-Host " Change:        $description" }
                 if ($migrationFile) { Write-Host " File:          $migrationFile" }
                 if ($null -ne $rulesChecked) { Write-Host " Rules checked: $rulesChecked" }
+                if ($hasDestructiveChanges) {
+                  Write-Host " DESTRUCTIVE CHANGE(S):"
+                  foreach ($d in $destructiveChanges) { Write-Host "   - $d" }
+                }
                 if ($changesList.Count -gt 0) {
                   Write-Host " Changes:"
                   foreach ($c in $changesList) { Write-Host "   - $c" }
@@ -444,6 +561,14 @@ stages:
                 $reportLines = New-Object System.Collections.Generic.List[string]
                 $reportLines.Add("# AI Migration Report")
                 $reportLines.Add("")
+                $reportLines.Add("## Quick summary")
+                $reportLines.Add($quickSummary)
+                $reportLines.Add("")
+                if ($hasDestructiveChanges) {
+                  $reportLines.Add("### :warning: Destructive change(s)")
+                  foreach ($d in $destructiveChanges) { $reportLines.Add("- $d") }
+                  $reportLines.Add("")
+                }
                 $reportLines.Add("**Status:** $statusLabel")
                 if ($description)   { $reportLines.Add("**Change:** $description") }
                 if ($migrationFile) { $reportLines.Add("**Migration file:** ``$migrationFile``") }
@@ -536,6 +661,12 @@ stages:
       AI_NUM_TURNS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_NUM_TURNS'] ]
       AI_TOTAL_COST_USD: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_TOTAL_COST_USD'] ]
       AI_MODEL_SUMMARY: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_MODEL_SUMMARY'] ]
+      AI_QUICK_SUMMARY: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_QUICK_SUMMARY'] ]
+      AI_HAS_DESTRUCTIVE: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_HAS_DESTRUCTIVE'] ]
+      AI_DESTRUCTIVE_BULLETS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_DESTRUCTIVE_BULLETS'] ]
+      AI_CHANGES_BULLETS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_CHANGES_BULLETS'] ]
+      AI_ISSUES_BULLETS: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_ISSUES_BULLETS'] ]
+      AI_RULES_CHECKED: $[ stageDependencies.GenerateMigration.RunAgent.outputs['ParseResult.AI_RULES_CHECKED'] ]
     jobs:
       # ManualValidation@0 is an "agentless" task - it can only run on the special server job
       # target, not on a normal agent pool alongside checkout/git steps. It needs its own job.
@@ -627,13 +758,21 @@ stages:
               script: |
                 $titlePrefix = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "[Approved despite review issues] " } else { "" }
                 $titleSuffix = if ("$(AI_OBJECTS_TOUCHED)") { " ($(AI_OBJECTS_TOUCHED))" } else { "" }
-                $exceptionNote = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "`n`n---`n**:warning: This migration was approved despite code review issues being flagged.** See the AI-Migration-Report-$(Build.BuildId) artifact (GenerateMigration stage) for full details of what was flagged before merging." } else { "" }
+                if ("$(AI_HAS_DESTRUCTIVE)" -eq "True") { $titlePrefix = "[Contains destructive change] $titlePrefix" }
+
+                # Destructive changes (drops) get their own banner right after the quick summary -
+                # a reviewer scanning PR titles/descriptions in a list should see this before
+                # anything else, not after digging into a bulleted changes section further down.
+                $destructiveBanner = if ("$(AI_HAS_DESTRUCTIVE)" -eq "True") {
+                  "`n`n**:warning: Contains a destructive change (drop):**`n$(AI_DESTRUCTIVE_BULLETS)"
+                } else { "" }
+                $exceptionNote = if ("$(MIGRATION_STATUS)" -eq "issues_found") { "`n`n---`n**:warning: This migration was approved despite code review issues being flagged** - see the issues listed above before merging." } else { "" }
 
                 $body = @{
                   sourceRefName = "refs/heads/$(FEATURE_BRANCH_NAME)"
                   targetRefName = "refs/heads/$(DEVELOPMENT_BRANCH)"
                   title = "$($titlePrefix)AI-generated migration: $(MIGRATION_DESCRIPTION)$titleSuffix"
-                  description = "This migration was generated and reviewed by an AI agent via the Flyway MCP server.`n`n**Changes:**`n$(AI_CHANGES_SUMMARY)`n`n**Code review summary:**`n$(REVIEW_SUMMARY)`n`n**Generated file:** $(MIGRATION_FILE)`n`n---`n**AI run stats:** $(AI_NUM_TURNS) turns, $(AI_DURATION_SECONDS)s, `$$(AI_TOTAL_COST_USD)`n$(AI_MODEL_SUMMARY)$exceptionNote`n`n---`nPlease review before merging - this PR was not merged automatically."
+                  description = "**Quick summary:** $(AI_QUICK_SUMMARY)$destructiveBanner`n`n---`nThis migration was generated and reviewed by an AI agent via the Flyway MCP server.`n`n**Objects added/changed/dropped:**`n$(AI_CHANGES_BULLETS)`n`n**Code review ($(AI_RULES_CHECKED) rules checked):**`n$(AI_ISSUES_BULLETS)`n`n**Generated file:** $(MIGRATION_FILE)`n`n---`n**AI run stats:** $(AI_NUM_TURNS) turns, $(AI_DURATION_SECONDS)s, `$$(AI_TOTAL_COST_USD)`n$(AI_MODEL_SUMMARY)$exceptionNote`n`n---`nPlease review before merging - this PR was not merged automatically."
                 } | ConvertTo-Json
 
                 $uri = "$(System.CollectionUri)$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.Name)/pullrequests?api-version=6.1-preview.1"
@@ -660,13 +799,9 @@ stages:
 #
 # KNOWN LIMITATIONS (V1 - worth addressing before wider customer distribution)
 #
-# - The AI agent step uses --allowedTools (pre-approve the specific Flyway MCP tools) together
-#   with --disallowedTools (hard-remove Claude's default built-in tools: Bash, Read, Write, Edit,
-#   etc.). Both are needed - --allowedTools alone does NOT restrict Claude to only the listed
-#   tools, it's additive on top of the built-in toolset, so the explicit deny list is what
-#   actually enforces the boundary. Do not add --dangerously-skip-permissions or any
-#   --permission-mode bypass flag to this step - both are confirmed to override --disallowedTools
-#   entirely, which would silently undo this restriction.
+# - --allowedTools and --disallowedTools are both required together (the former is additive, not
+#   restrictive, on its own) - never add --dangerously-skip-permissions or a --permission-mode
+#   bypass to the AI agent step, both are confirmed to silently override --disallowedTools.
 # - notifyUsers on the approval gate is empty - add reviewer emails/groups before relying on it.
 # - Swap "claude" and its flags for your standardized AI tool's headless-mode equivalent if not
 #   using Claude Code - the MCP server and .mcp.json itself don't change.

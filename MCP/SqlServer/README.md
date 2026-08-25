@@ -37,6 +37,8 @@ CLAUDE.md                    Project-level rules the agent must follow (workflow
   _shared/                     guardrails and preflight logic both skills reuse
 scripts/                      Interactive PowerShell entry point (see below)
 AzureDevOps/                  CI/CD pipeline YAML, including the unattended AI version (see below)
+  prompts/                     Prompt text for the AI pipeline, kept out of the YAML so it can be
+                                edited/reviewed as its own diff (see AzureDevOps-Flyway-CICD-Pipeline-AI_Windows.yml)
 ```
 
 ## Two ways to run this

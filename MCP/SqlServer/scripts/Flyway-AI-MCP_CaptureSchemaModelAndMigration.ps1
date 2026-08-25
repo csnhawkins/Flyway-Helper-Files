@@ -49,7 +49,7 @@ $allowedTools = "Skill,mcp__flyway__load_project,mcp__flyway__reload_project,mcp
 # which remain reachable unless explicitly removed. --disallowedTools is what actually enforces
 # a hard boundary - without this, Claude can and will use Bash/Grep/etc. on its own initiative,
 # even for a "question" step where you'd expect it to just answer from what it already knows.
-$disallowedTools = "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch"
+$disallowedTools = "Bash,Read,Write,Edit,MultiEdit,NotebookEdit,Glob,Grep,Task,WebFetch,WebSearch,AskUserQuestion"
 
 # ===== Helper functions =====
 
